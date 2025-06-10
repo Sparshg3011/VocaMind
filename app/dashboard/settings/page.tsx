@@ -1,10 +1,26 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { Box, Paper, Typography, TextField, Button, Grid, Alert, CircularProgress, Divider } from "@mui/material"
-import { Save as SaveIcon } from "@mui/icons-material"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import {
+  Settings,
+  Save,
+  Cloud,
+  Database,
+  Phone,
+  Shield,
+  CheckCircle,
+  AlertCircle,
+  Key,
+  Server,
+  Globe,
+} from "lucide-react"
 
 interface EnvVars {
   AZURE_OPENAI_ENDPOINT: string
@@ -104,219 +120,299 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
-        <CircularProgress />
-      </Box>
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-gray-600">Loading settings...</span>
+      </div>
     )
   }
 
   return (
-    <Box>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          Settings
-        </Typography>
-        <Typography variant="body1" paragraph>
-          Configure environment variables for the application.
-        </Typography>
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
+          <p className="text-gray-600">Configure your application environment and integrations</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-sm">
+            <Settings className="w-3 h-3 mr-1" />
+            Configuration
+          </Badge>
+        </div>
+      </div>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-            {error}
-          </Alert>
-        )}
+      {/* Alerts */}
+      {error && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="text-red-700">{error}</AlertDescription>
+        </Alert>
+      )}
 
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
-            {success}
-          </Alert>
-        )}
+      {success && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="w-4 h-4" />
+          <AlertDescription className="text-green-700">{success}</AlertDescription>
+        </Alert>
+      )}
 
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Azure OpenAI Settings
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-            </Grid>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Azure OpenAI Settings */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Cloud className="w-5 h-5 text-blue-600" />
+              <span>Azure OpenAI Configuration</span>
+            </CardTitle>
+            <CardDescription>
+              Configure your Azure OpenAI service connection for AI-powered conversations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="AZURE_OPENAI_ENDPOINT">Azure OpenAI Endpoint</Label>
+                <Input
+                  id="AZURE_OPENAI_ENDPOINT"
+                  name="AZURE_OPENAI_ENDPOINT"
+                  value={envVars.AZURE_OPENAI_ENDPOINT}
+                  onChange={handleChange}
+                  placeholder="https://your-resource.openai.azure.com/"
+                  required
+                />
+                <p className="text-xs text-gray-500">Your Azure OpenAI service endpoint URL</p>
+              </div>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Azure OpenAI Endpoint"
-                name="AZURE_OPENAI_ENDPOINT"
-                value={envVars.AZURE_OPENAI_ENDPOINT}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
+              <div className="space-y-2">
+                <Label htmlFor="AZURE_OPENAI_DEPLOYMENT_NAME">Deployment Name</Label>
+                <Input
+                  id="AZURE_OPENAI_DEPLOYMENT_NAME"
+                  name="AZURE_OPENAI_DEPLOYMENT_NAME"
+                  value={envVars.AZURE_OPENAI_DEPLOYMENT_NAME}
+                  onChange={handleChange}
+                  placeholder="gpt-4"
+                  required
+                />
+                <p className="text-xs text-gray-500">Name of your deployed AI model</p>
+              </div>
+            </div>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Azure OpenAI API Key"
-                name="AZURE_OPENAI_API_KEY"
-                value={envVars.AZURE_OPENAI_API_KEY}
-                onChange={handleChange}
-                fullWidth
-                required
-                type="password"
-              />
-            </Grid>
+            <div className="space-y-2">
+              <Label htmlFor="AZURE_OPENAI_API_KEY">API Key</Label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="AZURE_OPENAI_API_KEY"
+                  name="AZURE_OPENAI_API_KEY"
+                  type="password"
+                  value={envVars.AZURE_OPENAI_API_KEY}
+                  onChange={handleChange}
+                  placeholder="••••••••••••••••"
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500">Your Azure OpenAI API key (kept secure)</p>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Azure OpenAI Deployment Name"
-                name="AZURE_OPENAI_DEPLOYMENT_NAME"
-                value={envVars.AZURE_OPENAI_DEPLOYMENT_NAME}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                MongoDB Settings
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="MongoDB URI"
+        {/* MongoDB Settings */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Database className="w-5 h-5 text-green-600" />
+              <span>Database Configuration</span>
+            </CardTitle>
+            <CardDescription>
+              Configure your MongoDB database connection for data storage
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="MONGODB_URI">MongoDB Connection URI</Label>
+              <Input
+                id="MONGODB_URI"
                 name="MONGODB_URI"
                 value={envVars.MONGODB_URI}
                 onChange={handleChange}
-                fullWidth
+                placeholder="mongodb://localhost:27017/your-database"
                 required
               />
-            </Grid>
+              <p className="text-xs text-gray-500">Full MongoDB connection string</p>
+            </div>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                label="Database Name"
-                name="DB_NAME"
-                value={envVars.DB_NAME}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="DB_NAME">Database Name</Label>
+                <Input
+                  id="DB_NAME"
+                  name="DB_NAME"
+                  value={envVars.DB_NAME}
+                  onChange={handleChange}
+                  placeholder="call_management"
+                  required
+                />
+              </div>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                label="Collection Name"
-                name="COLLECTION_NAME"
-                value={envVars.COLLECTION_NAME}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
+              <div className="space-y-2">
+                <Label htmlFor="COLLECTION_NAME">Collection Name</Label>
+                <Input
+                  id="COLLECTION_NAME"
+                  name="COLLECTION_NAME"
+                  value={envVars.COLLECTION_NAME}
+                  onChange={handleChange}
+                  placeholder="contacts"
+                  required
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Twilio Settings
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-            </Grid>
+        {/* Twilio Settings */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Phone className="w-5 h-5 text-orange-600" />
+              <span>Twilio Configuration</span>
+            </CardTitle>
+            <CardDescription>
+              Configure your Twilio service for making and receiving calls
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="TWILIO_ACCOUNT_SID">Account SID</Label>
+                <Input
+                  id="TWILIO_ACCOUNT_SID"
+                  name="TWILIO_ACCOUNT_SID"
+                  value={envVars.TWILIO_ACCOUNT_SID}
+                  onChange={handleChange}
+                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  required
+                />
+              </div>
 
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Twilio Account SID"
-                name="TWILIO_ACCOUNT_SID"
-                value={envVars.TWILIO_ACCOUNT_SID}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
+              <div className="space-y-2">
+                <Label htmlFor="TWILIO_PHONE_NUMBER">Phone Number</Label>
+                <Input
+                  id="TWILIO_PHONE_NUMBER"
+                  name="TWILIO_PHONE_NUMBER"
+                  value={envVars.TWILIO_PHONE_NUMBER}
+                  onChange={handleChange}
+                  placeholder="+1234567890"
+                  required
+                />
+              </div>
+            </div>
 
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Twilio Auth Token"
-                name="TWILIO_AUTH_TOKEN"
-                value={envVars.TWILIO_AUTH_TOKEN}
-                onChange={handleChange}
-                fullWidth
-                required
-                type="password"
-              />
-            </Grid>
+            <div className="space-y-2">
+              <Label htmlFor="TWILIO_AUTH_TOKEN">Auth Token</Label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="TWILIO_AUTH_TOKEN"
+                  name="TWILIO_AUTH_TOKEN"
+                  type="password"
+                  value={envVars.TWILIO_AUTH_TOKEN}
+                  onChange={handleChange}
+                  placeholder="••••••••••••••••"
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500">Your Twilio authentication token (kept secure)</p>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Twilio Phone Number"
-                name="TWILIO_PHONE_NUMBER"
-                value={envVars.TWILIO_PHONE_NUMBER}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
+        {/* Server Settings */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Server className="w-5 h-5 text-gray-600" />
+              <span>Server Configuration</span>
+            </CardTitle>
+            <CardDescription>
+              Configure server settings and performance parameters
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="PORT">Port</Label>
+                <Input
+                  id="PORT"
+                  name="PORT"
+                  value={envVars.PORT}
+                  onChange={handleChange}
+                  placeholder="3000"
+                  type="number"
+                  required
+                />
+              </div>
 
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                Server Settings
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-            </Grid>
+              <div className="space-y-2">
+                <Label htmlFor="MAX_CONCURRENT_CALLS">Max Concurrent Calls</Label>
+                <Input
+                  id="MAX_CONCURRENT_CALLS"
+                  name="MAX_CONCURRENT_CALLS"
+                  value={envVars.MAX_CONCURRENT_CALLS}
+                  onChange={handleChange}
+                  placeholder="10"
+                  type="number"
+                  required
+                />
+              </div>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                label="Port"
-                name="PORT"
-                value={envVars.PORT}
-                onChange={handleChange}
-                fullWidth
-                required
-                type="number"
-              />
-            </Grid>
+              <div className="space-y-2">
+                <Label htmlFor="NODE_ENV">Environment</Label>
+                <Input
+                  id="NODE_ENV"
+                  name="NODE_ENV"
+                  value={envVars.NODE_ENV}
+                  onChange={handleChange}
+                  placeholder="production"
+                  required
+                />
+              </div>
+            </div>
 
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Server URL"
-                name="SERVER_URL"
-                value={envVars.SERVER_URL}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
+            <div className="space-y-2">
+              <Label htmlFor="SERVER_URL">Server URL</Label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="SERVER_URL"
+                  name="SERVER_URL"
+                  value={envVars.SERVER_URL}
+                  onChange={handleChange}
+                  placeholder="https://your-domain.com"
+                  className="pl-10"
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500">Public URL for webhook callbacks</p>
+            </div>
+          </CardContent>
+        </Card>
 
-            <Grid item xs={12} md={3}>
-              <TextField
-                label="Max Concurrent Calls"
-                name="MAX_CONCURRENT_CALLS"
-                value={envVars.MAX_CONCURRENT_CALLS}
-                onChange={handleChange}
-                fullWidth
-                required
-                type="number"
-              />
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Node Environment"
-                name="NODE_ENV"
-                value={envVars.NODE_ENV}
-                onChange={handleChange}
-                fullWidth
-                required
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Button type="submit" variant="contained" startIcon={<SaveIcon />} disabled={saving} sx={{ mt: 2 }}>
-                {saving ? "Saving..." : "Save Settings"}
-              </Button>
-            </Grid>
-          </Grid>
-        </form>
-      </Paper>
-    </Box>
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700 min-w-[120px]"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? "Saving..." : "Save Settings"}
+          </Button>
+        </div>
+      </form>
+    </div>
   )
 }

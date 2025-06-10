@@ -1,42 +1,33 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect, type ReactNode } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import {
-  AppBar,
-  Box,
-  CssBaseline,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Typography,
-  Avatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
   Menu,
-  MenuItem,
-} from "@mui/material"
-import {
-  Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  Contacts as ContactsIcon,
-  Description as DescriptionIcon,
-  Call as CallIcon,
-  Analytics as AnalyticsIcon,
-  Settings as SettingsIcon,
-  Logout as LogoutIcon,
-  AccountCircle,
-} from "@mui/icons-material"
-import Image from "next/image"
-
-const drawerWidth = 240
+  Home,
+  Users,
+  FileText,
+  Phone,
+  BarChart3,
+  Settings,
+  LogOut,
+  Brain,
+  Sparkles,
+  ChevronRight,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface AppLayoutProps {
   children: ReactNode
@@ -46,8 +37,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const { isAuthenticated, logout, user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -55,169 +45,232 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [isAuthenticated, router])
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
-  }
-
-  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget)
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null)
-  }
-
   const handleLogout = () => {
-    handleMenuClose()
     logout()
     router.push("/")
   }
 
   const menuItems = [
-    { text: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
-    { text: "Contacts", icon: <ContactsIcon />, path: "/dashboard/contacts" },
-    { text: "Policy", icon: <DescriptionIcon />, path: "/dashboard/policy" },
-    { text: "Action", icon: <CallIcon />, path: "/dashboard/action" },
-    { text: "Analytics", icon: <AnalyticsIcon />, path: "/dashboard/analytics" },
-    { text: "Settings", icon: <SettingsIcon />, path: "/dashboard/settings" },
+    { 
+      name: "Dashboard", 
+      icon: Home, 
+      path: "/dashboard",
+      description: "Overview and stats"
+    },
+    { 
+      name: "Contacts", 
+      icon: Users, 
+      path: "/dashboard/contacts",
+      description: "Manage contact lists"
+    },
+    { 
+      name: "Policy", 
+      icon: FileText, 
+      path: "/dashboard/policy",
+      description: "Configure call policies"
+    },
+    { 
+      name: "Action", 
+      icon: Phone, 
+      path: "/dashboard/action",
+      description: "Initiate call campaigns"
+    },
+    { 
+      name: "Analytics", 
+      icon: BarChart3, 
+      path: "/dashboard/analytics",
+      description: "View call analytics"
+    },
+    { 
+      name: "Settings", 
+      icon: Settings, 
+      path: "/dashboard/settings",
+      description: "System configuration"
+    },
   ]
 
-  const drawer = (
-    <div>
-      <Toolbar sx={{ justifyContent: "center", py: 1 }}>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          <Box sx={{ position: "relative", width: 40, height: 40, mr: 1 }}>
-            <Image src="/connected-communication-network.png" alt="Logo" fill style={{ objectFit: "contain" }} />
-          </Box>
-          <Typography variant="h6" noWrap component="div">
-            Call Manager
-          </Typography>
-        </Box>
-      </Toolbar>
-      <Divider />
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={pathname === item.path}
-              onClick={() => {
-                router.push(item.path)
-                setMobileOpen(false)
-              }}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </div>
-  )
+  const currentPage = menuItems.find(item => item.path === pathname)
 
   if (!isAuthenticated) {
     return null
   }
 
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      {/* Logo and Brand */}
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+              <Brain className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+              <Sparkles className="w-2 h-2 text-white" />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-blue-600">
+              VocaMind
+            </h1>
+            <p className="text-xs text-gray-500">AI Call Manager</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-2">
+        {menuItems.map((item) => {
+          const Icon = item.icon
+          const isActive = pathname === item.path
+          
+          return (
+            <button
+              key={item.path}
+              onClick={() => {
+                router.push(item.path)
+                setIsMobileMenuOpen(false)
+              }}
+              className={cn(
+                "w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-left transition-all duration-200 group",
+                isActive
+                  ? "bg-blue-50 border border-blue-200 text-blue-700 shadow-sm"
+                  : "hover:bg-gray-50 text-gray-700 hover:text-gray-900"
+              )}
+            >
+              <Icon className={cn(
+                "w-5 h-5 transition-colors",
+                isActive ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700"
+              )} />
+              <div className="flex-1">
+                <div className="font-medium">{item.name}</div>
+                <div className="text-xs text-gray-500">{item.description}</div>
+              </div>
+              {isActive && (
+                <ChevronRight className="w-4 h-4 text-blue-600" />
+              )}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* User Profile */}
+      <div className="p-4 border-t border-gray-200">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+              <Avatar className="w-10 h-10">
+                <AvatarImage src="" />
+                <AvatarFallback className="bg-blue-600 text-white font-semibold">
+                  {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 text-left">
+                <div className="font-medium text-gray-900">{user?.username || 'User'}</div>
+                <div className="text-sm text-gray-500">Administrator</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  )
+
   return (
-    <Box sx={{ display: "flex" }}>
-      <CssBaseline />
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: "none" } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find((item) => item.path === pathname)?.text || "Dashboard"}
-          </Typography>
-          <IconButton
-            size="large"
-            edge="end"
-            aria-label="account of current user"
-            aria-controls="menu-appbar"
-            aria-haspopup="true"
-            onClick={handleProfileMenuOpen}
-            color="inherit"
-          >
-            <AccountCircle />
-          </IconButton>
-          <Menu
-            id="menu-appbar"
-            anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: "bottom",
-              horizontal: "right",
-            }}
-            keepMounted
-            transformOrigin={{
-              vertical: "top",
-              horizontal: "right",
-            }}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-          >
-            <MenuItem disabled>
-              <Avatar sx={{ mr: 2, width: 24, height: 24 }}>{user?.username.charAt(0).toUpperCase()}</Avatar>
-              {user?.username}
-            </MenuItem>
-            <Divider />
-            <MenuItem onClick={handleLogout}>
-              <ListItemIcon>
-                <LogoutIcon fontSize="small" />
-              </ListItemIcon>
-              Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-      </AppBar>
-      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }} aria-label="mailbox folders">
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: "block", sm: "none" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: "none", sm: "block" },
-            "& .MuiDrawer-paper": { boxSizing: "border-box", width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: { xs: 8, sm: 8 },
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
+    <div className="min-h-screen bg-gray-50">
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:block lg:w-72 lg:overflow-y-auto lg:bg-white lg:shadow-lg">
+        <SidebarContent />
+      </div>
+
+      {/* Mobile Header */}
+      <div className="lg:hidden">
+        <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72 p-0">
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+            
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {currentPage?.name || 'Dashboard'}
+              </h1>
+              <p className="text-sm text-gray-500">
+                {currentPage?.description || 'Welcome back'}
+              </p>
+            </div>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src="" />
+                  <AvatarFallback className="bg-blue-600 text-white text-sm">
+                    {user?.username?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="lg:pl-72">
+        <main className="min-h-screen">
+          {/* Desktop Header */}
+          <div className="hidden lg:block bg-white border-b border-gray-200">
+            <div className="px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {currentPage?.name || 'Dashboard'}
+                  </h1>
+                  <p className="text-gray-600">
+                    {currentPage?.description || 'Welcome back to your dashboard'}
+                  </p>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm font-medium text-gray-900">{user?.username || 'User'}</div>
+                    <div className="text-xs text-gray-500">Administrator</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Page Content */}
+          <div className="p-6">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
   )
 }

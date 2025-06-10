@@ -1,32 +1,35 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
-  Box,
-  Button,
-  Paper,
-  Typography,
-  TextField,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  IconButton,
   Dialog,
-  DialogActions,
   DialogContent,
-  DialogContentText,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
   DialogTitle,
-  CircularProgress,
-  Alert,
-} from "@mui/material"
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-} from "@mui/icons-material"
+  Bot,
+  Edit,
+  Trash2,
+  Save,
+  Plus,
+  MessageSquare,
+  Calendar,
+  User,
+  FileText,
+  Sparkles,
+  AlertCircle,
+} from "lucide-react"
 
 interface Policy {
   _id: string
@@ -191,153 +194,306 @@ export default function PolicyPage() {
   }
 
   return (
-    <Box>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          {editingPolicy ? "Edit Policy" : "Create New Policy"}
-        </Typography>
-        <Typography variant="body1" paragraph>
-          Define agent names and call instructions for your automated calls.
-        </Typography>
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">AI Agent Policies</h1>
+          <p className="text-gray-600">Configure your AI agents with custom instructions and behaviors</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-sm">
+            <Bot className="w-3 h-3 mr-1" />
+            {policies.length} policies
+          </Badge>
+        </div>
+      </div>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
-            {error}
-          </Alert>
-        )}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-blue-100">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                <Bot className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-700">Total Policies</p>
+                <p className="text-xl font-bold text-blue-900">{policies.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess("")}>
-            {success}
-          </Alert>
-        )}
+        <Card className="border-0 shadow-sm bg-gradient-to-r from-green-50 to-green-100">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-green-700">Active Agents</p>
+                <p className="text-xl font-bold text-green-900">{policies.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <TextField
-              label="Agent Name"
-              fullWidth
-              value={agentName}
-              onChange={(e) => setAgentName(e.target.value)}
-              margin="normal"
-              required
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              label="Call Instructions"
-              fullWidth
-              multiline
-              rows={6}
+        <Card className="border-0 shadow-sm bg-gradient-to-r from-orange-50 to-orange-100">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                <MessageSquare className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-orange-700">Avg Prompt Length</p>
+                <p className="text-xl font-bold text-orange-900">
+                  {policies.length > 0 
+                    ? Math.round(policies.reduce((acc, p) => acc + p.prompt.length, 0) / policies.length)
+                    : 0
+                  }
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Policy Form */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            {editingPolicy ? (
+              <>
+                <Edit className="w-5 h-5 text-orange-600" />
+                <span>Edit Policy</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-5 h-5 text-blue-600" />
+                <span>Create New Policy</span>
+              </>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Define how your AI agents should behave during calls
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {error && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertCircle className="w-4 h-4" />
+              <AlertDescription className="text-red-700">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="border-green-200 bg-green-50">
+              <Sparkles className="w-4 h-4" />
+              <AlertDescription className="text-green-700">{success}</AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="agentName" className="text-sm font-medium">
+                Agent Name
+              </Label>
+              <Input
+                id="agentName"
+                placeholder="e.g., Sales Agent, Support Agent"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                className="h-10"
+              />
+              <p className="text-xs text-gray-500">
+                Choose a descriptive name for your AI agent
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Policy Status</Label>
+              <div className="flex items-center space-x-2 h-10">
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  Active
+                </Badge>
+                <span className="text-sm text-gray-500">Ready for use</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="prompt" className="text-sm font-medium">
+              Agent Instructions
+            </Label>
+            <Textarea
+              id="prompt"
+              placeholder="Define how your agent should behave, what to say, and how to handle different scenarios..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              margin="normal"
-              required
-              placeholder="Enter detailed workflow instructions for the call..."
+              className="min-h-[200px] resize-none"
             />
-          </Grid>
-          <Grid item xs={12}>
-            <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-              {editingPolicy ? (
-                <>
-                  <Button
-                    variant="contained"
-                    startIcon={<SaveIcon />}
-                    onClick={handleUpdatePolicy}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? "Updating..." : "Update Policy"}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    startIcon={<CancelIcon />}
-                    onClick={handleCancelEdit}
-                    disabled={actionLoading}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button variant="contained" startIcon={<AddIcon />} onClick={handleSavePolicy} disabled={actionLoading}>
-                  {actionLoading ? "Creating..." : "Create Policy"}
+            <p className="text-xs text-gray-500">
+              Be specific about tone, objectives, and responses. Character count: {prompt.length}
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            {editingPolicy ? (
+              <>
+                <Button 
+                  onClick={handleUpdatePolicy} 
+                  disabled={actionLoading}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {actionLoading ? "Updating..." : "Update Policy"}
                 </Button>
-              )}
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
+                <Button 
+                  variant="outline" 
+                  onClick={handleCancelEdit}
+                  disabled={actionLoading}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={handleSavePolicy} 
+                disabled={actionLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {actionLoading ? "Creating..." : "Create Policy"}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-      <Typography variant="h5" gutterBottom>
-        Existing Policies
-      </Typography>
+      {/* Policies List */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <FileText className="w-5 h-5 text-gray-600" />
+            <span>Existing Policies</span>
+          </CardTitle>
+          <CardDescription>
+            Manage and edit your AI agent policies
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <span className="ml-3 text-gray-600">Loading policies...</span>
+            </div>
+          ) : policies.length === 0 ? (
+            <div className="text-center py-12">
+              <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No policies found</h3>
+              <p className="text-gray-500 mb-4">
+                Create your first AI agent policy to get started with automated calls.
+              </p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Policy
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {policies.map((policy) => (
+                <Card key={policy._id} className="border border-gray-200 hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Bot className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{policy.agentName}</CardTitle>
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
+                            <span className="flex items-center">
+                              <Calendar className="w-3 h-3 mr-1" />
+                              {new Date(policy.createdAt).toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center">
+                              <MessageSquare className="w-3 h-3 mr-1" />
+                              {policy.prompt.length} chars
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                        Active
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm text-gray-600 line-clamp-3">
+                          {policy.prompt}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditPolicy(policy)}
+                            className="h-8 text-xs"
+                          >
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => confirmDeletePolicy(policy._id)}
+                            className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Updated {new Date(policy.updatedAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", my: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : policies.length === 0 ? (
-        <Paper sx={{ p: 3, textAlign: "center" }}>
-          <Typography>No policies found. Create your first policy above.</Typography>
-        </Paper>
-      ) : (
-        <Grid container spacing={3}>
-          {policies.map((policy) => (
-            <Grid item xs={12} md={6} key={policy._id}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    {policy.agentName}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      whiteSpace: "pre-wrap",
-                      maxHeight: "150px",
-                      overflow: "auto",
-                    }}
-                  >
-                    {policy.prompt}
-                  </Typography>
-                  <Typography variant="caption" display="block" sx={{ mt: 2 }}>
-                    Last updated: {new Date(policy.updatedAt).toLocaleString()}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  <IconButton onClick={() => handleEditPolicy(policy)} disabled={actionLoading}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => confirmDeletePolicy(policy._id)} disabled={actionLoading} color="error">
-                    <DeleteIcon />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Delete Policy</DialogTitle>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={openDeleteDialog} onOpenChange={setOpenDeleteDialog}>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete this policy? This action cannot be undone.
-          </DialogContentText>
+          <DialogHeader>
+            <DialogTitle>Delete Policy</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this policy? This action cannot be undone and may affect active campaigns.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenDeleteDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeletePolicy}
+              disabled={actionLoading}
+            >
+              {actionLoading ? "Deleting..." : "Delete Policy"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDeleteDialog(false)} disabled={actionLoading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeletePolicy}
-            color="error"
-            disabled={actionLoading}
-            startIcon={actionLoading ? <CircularProgress size={20} /> : <DeleteIcon />}
-          >
-            Delete
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   )
 }
