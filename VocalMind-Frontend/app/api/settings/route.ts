@@ -12,7 +12,7 @@ const defaultEnvVars = {
   TWILIO_AUTH_TOKEN: "19aebc8d4fd93a296859d25220631",
   TWILIO_PHONE_NUMBER: "+18669291557",
   PORT: "5050",
-  SERVER_URL: "https://4407-2603-8000-97f0-7e80-198d-43a1-9b98-c528.ngrok-free.app",
+  SERVER_URL: "https://c370-106-51-46-76.ngrok-free.app",
   MAX_CONCURRENT_CALLS: "5",
   NODE_ENV: "development",
 }

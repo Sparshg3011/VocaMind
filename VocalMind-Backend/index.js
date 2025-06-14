@@ -776,12 +776,11 @@ await connectToDatabase();
 // Function to trigger batch calls
 async function triggerBatchCalls() {
     try {
-      const ngrokUrl = 'https://af5a-64-136-145-74.ngrok-free.app';
       const filePath = './phone_numbers.csv'; // Relative path to CSV file
   
-      console.log(`Attempting to trigger batch calls to ${ngrokUrl}/batch-calls`);
+      console.log(`Attempting to trigger batch calls to ${SERVER_URL}/batch-calls`);
   
-      const response = await axios.post(`${ngrokUrl}/batch-calls`, {
+      const response = await axios.post(`${SERVER_URL}/batch-calls`, {
         filePath: filePath
       }, {
         headers: {
