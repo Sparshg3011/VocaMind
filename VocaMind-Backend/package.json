@@ -1,0 +1,37 @@
+{
+    "name": "speech-assistant-outbound-calls",
+    "version": "1.0.0",
+    "description": "An application that makes outbound calls to phone numbers in a CSV file using Twilio and Azure OpenAI Realtime API",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "twilio",
+        "openai",
+        "azure",
+        "voice",
+        "realtime",
+        "outbound-calls"
+    ],
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "dependencies": {
+        "@fastify/formbody": "^8.0.2",
+        "@fastify/websocket": "^11.0.2",
+        "axios": "^1.8.4",
+        "csv-parse": "^5.6.0",
+        "dotenv": "^16.5.0",
+        "fastify": "^5.3.0",
+        "mongodb": "^6.15.0",
+        "pino-pretty": "^13.0.0",
+        "twilio": "^5.5.2",
+        "ws": "^8.18.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.0"
+    }
+}

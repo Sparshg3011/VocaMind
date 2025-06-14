@@ -1,4 +1,4 @@
-// File: /Users/sparshgupta/Desktop/USC/Projects/VocaMind/app/layout.tsx
+// File: /Users/sparshgupta/Desktop/USC/Projects/VocaMind/VocaMind-Frontend/app/layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

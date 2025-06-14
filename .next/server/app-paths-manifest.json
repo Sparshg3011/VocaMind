@@ -1,16 +1,15 @@
 {
-  "/api/policies/route": "app/api/policies/route.js",
+  "/api/dashboard/stats/route": "app/api/dashboard/stats/route.js",
   "/api/contacts/route": "app/api/contacts/route.js",
+  "/api/policies/route": "app/api/policies/route.js",
+  "/api/settings/route": "app/api/settings/route.js",
   "/api/calls/route": "app/api/calls/route.js",
   "/api/calls/stats/route": "app/api/calls/stats/route.js",
-  "/api/dashboard/stats/route": "app/api/dashboard/stats/route.js",
-  "/api/settings/route": "app/api/settings/route.js",
   "/page": "app/page.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/dashboard/policy/page": "app/dashboard/policy/page.js",
-  "/dashboard/action/page": "app/dashboard/action/page.js",
-  "/dashboard/analytics/page": "app/dashboard/analytics/page.js",
   "/dashboard/contacts/page": "app/dashboard/contacts/page.js",
+  "/dashboard/action/page": "app/dashboard/action/page.js",
+  "/dashboard/settings/page": "app/dashboard/settings/page.js",
   "/dashboard/page": "app/dashboard/page.js",
-  "/dashboard/settings/page": "app/dashboard/settings/page.js"
+  "/dashboard/analytics/page": "app/dashboard/analytics/page.js",
+  "/dashboard/policy/page": "app/dashboard/policy/page.js"
 }
