@@ -5,7 +5,7 @@ import fastifyFormBody from "@fastify/formbody";
 import fastifyWs from "@fastify/websocket";
 import path from "path";
 import { fileURLToPath } from "url";
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import twilio from "twilio";
@@ -256,6 +256,7 @@ fastify.register(async (fastify) => {
             const phoneNumber = data.start.customParameters?.phoneNumber || "Unknown";
             const callSid = data.start.customParameters?.callSid || "Unknown";
             const chosenLanguage = data.start.customParameters?.language || 'en';
+            const agentInstructions = data.start.customParameters?.agentInstructions ? decodeURIComponent(data.start.customParameters.agentInstructions) : null;
             
             console.log(`New call stream started - SID: ${streamSid}, Phone: ${phoneNumber}, Call SID: ${callSid}, Language: ${chosenLanguage}`);
             
@@ -265,6 +266,7 @@ fastify.register(async (fastify) => {
               phoneNumber,
               callSid,
               language: chosenLanguage,
+              agentInstructions,
               latestMediaTimestamp: 0,
               lastAudioDeltaTime: Date.now(),
               lastAssistantItem: null,
@@ -286,7 +288,8 @@ fastify.register(async (fastify) => {
               if (now - session.lastAudioDeltaTime > 5000) { // 5 seconds threshold
                 console.log(`Audio watchdog: No audio delta received for session ${streamSid} in over 5 seconds. Sending session update.`);
                 if (session.openAiWs && session.openAiWs.readyState === WebSocket.OPEN) {
-                  const systemMessage = getSystemMessage(session.language);
+                  console.log('Using agent instructions:', session.agentInstructions);
+                  const systemMessage = session.agentInstructions || getSystemMessage(session.language);
                   const sessionUpdate = {
                     type: "session.update",
                     session: {
@@ -320,7 +323,8 @@ fastify.register(async (fastify) => {
             
             openAiWs.on("open", () => {
               console.log(`Connected to Azure OpenAI for stream ${streamSid}`);
-              const systemMessage = getSystemMessage(session.language);
+              console.log('Using agent instructions:', session.agentInstructions);
+              const systemMessage = session.agentInstructions || getSystemMessage(session.language);
               const sessionUpdate = {
                 type: "session.update",
                 session: {
@@ -338,6 +342,8 @@ fastify.register(async (fastify) => {
               
               // Send initial greeting
               setTimeout(() => {
+                const initialUserMessage =  "Greet the user and introduce yourself." || session.initialUserMessage ;
+
                 const initialMessage = {
                   type: "conversation.item.create",
                   item: {
@@ -346,7 +352,7 @@ fastify.register(async (fastify) => {
                     content: [
                       {
                         type: "input_text",
-                        text: "Greet the user warmly and explain that you'll be helping them create a professional resume. Ask for their full name to begin the process."
+                        text: initialUserMessage
                       }
                     ]
                   }
@@ -614,16 +620,16 @@ function processNextCallInQueue() {
   if (callQueue.length > 0 && activeCallCount < MAX_CONCURRENT_CALLS) {
     const nextCall = callQueue.shift();
     console.log(`Processing next call in queue to ${nextCall.phoneNumber}. Queue length: ${callQueue.length}`);
-    makeOutboundCall(nextCall.phoneNumber, nextCall.language);
+    makeOutboundCall(nextCall.phoneNumber, nextCall.language, nextCall.agentInstructions);
   }
 }
 
 // Function to make an outbound call
-async function makeOutboundCall(phoneNumber, language = 'en') {
+async function makeOutboundCall(phoneNumber, language = 'en', agentInstructions = null) {
   try {
     if (activeCallCount >= MAX_CONCURRENT_CALLS) {
       console.log(`Maximum concurrent calls (${MAX_CONCURRENT_CALLS}) reached. Queuing call to ${phoneNumber}`);
-      callQueue.push({ phoneNumber, language });
+      callQueue.push({ phoneNumber, language, agentInstructions });
       return;
     }
     
@@ -647,12 +653,13 @@ async function makeOutboundCall(phoneNumber, language = 'en') {
                     : language === 'ko'
                     ? 'ko-KR'
                     : 'en-US'
-                }">Hello from WorkOnward Resume Assistant. We will begin our conversation shortly.</Say>
+                }">Hello from WorkOnward Assistant. We will begin our conversation shortly.</Say>
                 <Connect>
                   <Stream url="wss://${new URL(SERVER_URL).hostname}/media-stream">
                     <Parameter name="phoneNumber" value="${phoneNumber}"/>
                     <Parameter name="language" value="${language}"/>
                     <Parameter name="callSid" value="{{CallSid}}"/>
+                    <Parameter name="agentInstructions" value="${encodeURIComponent(agentInstructions || '')}"/>
                   </Stream>
                 </Connect>
               </Response>`,
@@ -713,35 +720,43 @@ function loadPhoneNumbersFromCSV(filePath) {
 // API endpoint to initiate batch calls from CSV file
 fastify.post("/batch-calls", async (request, reply) => {
   try {
-    const filePath = request.body?.filePath;
-    
+    const { filePath, policyId } = request.body;
     if (!filePath) {
       return reply.code(400).send({ error: "Missing file path" });
     }
-    
+
+    // Fetch agent instructions from policy if policyId is provided
+    let agentInstructions = null;
+    if (policyId) {
+      const db = client.db(DB_NAME);
+      const collection = db.collection("agent_policies");
+      const policy = await collection.findOne({ _id: new ObjectId(policyId) });
+      if (!policy) {
+        return reply.code(400).send({ error: "Policy not found" });
+      }
+      agentInstructions = policy.agentInstructions;
+    }
+
     const phoneNumbers = loadPhoneNumbersFromCSV(filePath);
-    
     if (phoneNumbers.length === 0) {
       return reply.code(400).send({ error: "No valid phone numbers found in CSV" });
     }
-    
-    // Process the first set of calls up to MAX_CONCURRENT_CALLS
-    const initialBatch = phoneNumbers.slice(0, MAX_CONCURRENT_CALLS);
-    const remainingBatch = phoneNumbers.slice(MAX_CONCURRENT_CALLS);
-    
-    // Queue the remaining calls
+
+    // Pass agentInstructions to each call session
+    const initialBatch = phoneNumbers.slice(0, MAX_CONCURRENT_CALLS).map(entry => ({ ...entry, agentInstructions }));
+    const remainingBatch = phoneNumbers.slice(MAX_CONCURRENT_CALLS).map(entry => ({ ...entry, agentInstructions }));
+
     remainingBatch.forEach(entry => {
       callQueue.push(entry);
     });
-    
-    // Start the initial batch
-    const callPromises = initialBatch.map(entry => 
-      makeOutboundCall(entry.phoneNumber, entry.language)
+
+    const callPromises = initialBatch.map(entry =>
+      makeOutboundCall(entry.phoneNumber, entry.language, entry.agentInstructions)
     );
-    
+
     await Promise.allSettled(callPromises);
-    
-    reply.send({ 
+
+    reply.send({
       message: `Started ${initialBatch.length} calls, queued ${remainingBatch.length} calls`,
       totalCalls: phoneNumbers.length,
       activeCalls: activeCallCount,
@@ -770,6 +785,56 @@ fastify.get("/call-status-summary", async (request, reply) => {
   });
 });
 
+// --- Agent Policy API ---
+
+// Create a new agent policy
+fastify.post("/api/policies", async (request, reply) => {
+  const { agentName, agentInstructions } = request.body;
+  if (!agentName || !agentInstructions) {
+    return reply.code(400).send({ error: "agentName and agentInstructions are required" });
+  }
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection("agent_policies");
+    const result = await collection.insertOne({
+      agentName,
+      agentInstructions,
+      createdAt: new Date().toISOString()
+    });
+    reply.send({ message: "Policy created", id: result.insertedId });
+  } catch (error) {
+    reply.code(500).send({ error: "Failed to create policy" });
+  }
+});
+
+// List all agent policies
+fastify.get("/api/policies", async (request, reply) => {
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection("agent_policies");
+    const policies = await collection.find({}).toArray();
+    reply.send(policies);
+  } catch (error) {
+    reply.code(500).send({ error: "Failed to fetch policies" });
+  }
+});
+
+// Get a single agent policy by ID
+fastify.get("/api/policies/:id", async (request, reply) => {
+  const { id } = request.params;
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection("agent_policies");
+    const policy = await collection.findOne({ _id: new ObjectId(id) });
+    if (!policy) {
+      return reply.code(404).send({ error: "Policy not found" });
+    }
+    reply.send(policy);
+  } catch (error) {
+    reply.code(500).send({ error: "Failed to fetch policy" });
+  }
+});
+
 // Connect to MongoDB when the server starts
 await connectToDatabase();
 
@@ -777,17 +842,19 @@ await connectToDatabase();
 async function triggerBatchCalls() {
     try {
       const filePath = './phone_numbers.csv'; // Relative path to CSV file
-  
-      console.log(`Attempting to trigger batch calls to ${SERVER_URL}/batch-calls`);
-  
+      const policyId = '68501a43f48944c85f5a3399'; // Default policy ID to use
+
+      console.log(`Attempting to trigger batch calls to ${SERVER_URL}/batch-calls with policyId ${policyId}`);
+
       const response = await axios.post(`${SERVER_URL}/batch-calls`, {
-        filePath: filePath
+        filePath: filePath,
+        policyId: policyId
       }, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
-  
+
       console.log('Batch calls initiated successfully:', response.data);
     } catch (error) {
       console.error('Error initiating batch calls:', 
