@@ -29,6 +29,8 @@ import {
   FileText,
   Sparkles,
   AlertCircle,
+  Wand2,
+  RefreshCw,
 } from "lucide-react"
 
 interface Policy {
@@ -53,20 +55,74 @@ export default function PolicyPage() {
   const [policyToDelete, setPolicyToDelete] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
+  // AI Suggestion state (simplified to single suggestion)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+
   const fetchPolicies = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/policies")
+      // Get backend URL from environment or default to localhost:5050
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+      const response = await fetch(`${backendUrl}/api/policies`)
       if (!response.ok) {
         throw new Error("Failed to fetch policies")
       }
       const data = await response.json()
-      setPolicies(data.policies)
+      // Map agentInstructions to prompt for frontend compatibility
+      const mappedPolicies = data.map((policy: any) => ({
+        ...policy,
+        prompt: policy.agentInstructions || policy.prompt,
+        agentName: policy.agentName
+      }))
+      setPolicies(mappedPolicies)
     } catch (error) {
       console.error("Error fetching policies:", error)
       setError("Failed to load policies. Please try again.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Generate AI suggestion and directly populate the textarea
+  const generateSuggestion = async () => {
+    if (!agentName.trim()) {
+      setError("Please enter an agent name first to generate a suggestion")
+      return
+    }
+
+    try {
+      setSuggestionsLoading(true)
+      setError("")
+      
+      const response = await fetch("/api/generate-suggestions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          agentName: agentName.trim(),
+          context: editingPolicy ? "update" : "create"
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate suggestion")
+      }
+
+      // Directly populate the prompt field with the suggestion
+      setPrompt(data.suggestion)
+      setSuccess("AI suggestion generated and applied!")
+    } catch (error) {
+      console.error("Error generating suggestion:", error)
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError("Failed to generate AI suggestion. Please try again.")
+      }
+    } finally {
+      setSuggestionsLoading(false)
     }
   }
 
@@ -80,19 +136,26 @@ export default function PolicyPage() {
       return
     }
 
+    if (prompt.length > 1000) {
+      setError("Policy instructions are too long (1000+ characters). Please shorten them for better voice call performance.")
+      return
+    }
+
     try {
       setActionLoading(true)
       setError("")
       setSuccess("")
 
-      const response = await fetch("/api/policies", {
+      // Get backend URL from environment or default to localhost:5050
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+      const response = await fetch(`${backendUrl}/api/policies`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           agentName,
-          prompt,
+          agentInstructions: prompt,
         }),
       })
 
@@ -123,14 +186,16 @@ export default function PolicyPage() {
       setError("")
       setSuccess("")
 
-      const response = await fetch(`/api/policies/${editingPolicy._id}`, {
+      // Get backend URL from environment or default to localhost:5050
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+      const response = await fetch(`${backendUrl}/api/policies/${editingPolicy._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           agentName,
-          prompt,
+          agentInstructions: prompt,
         }),
       })
 
@@ -156,7 +221,9 @@ export default function PolicyPage() {
 
     try {
       setActionLoading(true)
-      const response = await fetch(`/api/policies/${policyToDelete}`, {
+      // Get backend URL from environment or default to localhost:5050
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+      const response = await fetch(`${backendUrl}/api/policies/${policyToDelete}`, {
         method: "DELETE",
       })
 
@@ -324,9 +391,30 @@ export default function PolicyPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="prompt" className="text-sm font-medium">
-              Agent Instructions
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="prompt" className="text-sm font-medium">
+                Agent Instructions
+              </Label>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateSuggestion}
+                disabled={suggestionsLoading || !agentName.trim()}
+                className="h-8 text-xs bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+              >
+                {suggestionsLoading ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-3 h-3 mr-1" />
+                    Generate AI Script
+                  </>
+                )}
+              </Button>
+            </div>
             <Textarea
               id="prompt"
               placeholder="Define how your agent should behave, what to say, and how to handle different scenarios..."
@@ -334,9 +422,26 @@ export default function PolicyPage() {
               onChange={(e) => setPrompt(e.target.value)}
               className="min-h-[200px] resize-none"
             />
-            <p className="text-xs text-gray-500">
-              Be specific about tone, objectives, and responses. Character count: {prompt.length}
-            </p>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500">
+                Be specific about tone, objectives, and responses.
+              </span>
+              <span className={`font-medium ${
+                prompt.length > 1000 
+                  ? 'text-red-600' 
+                  : prompt.length > 800 
+                  ? 'text-orange-600' 
+                  : 'text-gray-600'
+              }`}>
+                {prompt.length}/1000 characters
+                {prompt.length > 1000 && ' (Too long for voice calls!)'}
+              </span>
+            </div>
+            {prompt.length > 1000 && (
+              <div className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                ⚠️ Instructions too long! Voice calls work best with under 1000 characters. Consider shortening for better performance.
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">

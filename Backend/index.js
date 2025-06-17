@@ -640,6 +640,12 @@ function processNextCallInQueue() {
 // Function to make an outbound call
 async function makeOutboundCall(phoneNumber, language = 'en', agentInstructions = null) {
   try {
+    // Check if instructions are too long for voice calls
+    if (agentInstructions && agentInstructions.length > 1000) {
+      console.error(`❌ Cannot make call to ${phoneNumber}: Agent instructions too long (${agentInstructions.length} characters). Voice calls work best with under 1000 characters.`);
+      return { error: 'INSTRUCTIONS_TOO_LONG', message: 'Agent instructions too long for voice calls' };
+    }
+    
     if (activeCallCount >= MAX_CONCURRENT_CALLS) {
       console.log(`Maximum concurrent calls (${MAX_CONCURRENT_CALLS}) reached. Queuing call to ${phoneNumber}`);
       callQueue.push({ phoneNumber, language, agentInstructions });
@@ -684,7 +690,8 @@ async function makeOutboundCall(phoneNumber, language = 'en', agentInstructions 
     console.log(`Call initiated to ${phoneNumber}, Call SID: ${call.sid}`);
     return call.sid;
   } catch (error) {
-    console.error(`Error making outbound call to ${phoneNumber}:`, error);
+    console.error(`❌ Error making outbound call to ${phoneNumber}:`, error.message);
+    console.error(`❌ Full error details:`, error);
     activeCallCount--;
     
     // Process next call in queue since this one failed
@@ -815,6 +822,14 @@ fastify.post("/calls/initiate", async (request, reply) => {
         return reply.code(400).send({ error: "Policy not found" });
       }
       agentInstructions = policy.agentInstructions;
+      
+      // Check if instructions are too long
+      if (agentInstructions && agentInstructions.length > 1000) {
+        return reply.code(400).send({ 
+          error: "Agent instructions too long for voice calls",
+          details: `Instructions are ${agentInstructions.length} characters. Voice calls work best with under 1000 characters. Please shorten the policy instructions.`
+        });
+      }
     }
 
     // Convert contacts to the format expected by makeOutboundCall
@@ -868,6 +883,31 @@ fastify.get("/call-status-summary", async (request, reply) => {
   });
 });
 
+// --- Contacts API ---
+
+// Get contacts with pagination
+fastify.get("/api/contacts", async (request, reply) => {
+  try {
+    const page = parseInt(request.query.page || "0");
+    const limit = parseInt(request.query.limit || "10");
+    const skip = page * limit;
+
+    const db = client.db(DB_NAME);
+    const collection = db.collection("contacts");
+
+    // Get total count
+    const total = await collection.countDocuments();
+
+    // Get paginated contacts
+    const contacts = await collection.find({}).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray();
+
+    reply.send({ contacts, total });
+  } catch (error) {
+    console.error("Error fetching contacts:", error);
+    reply.code(500).send({ error: "Failed to fetch contacts" });
+  }
+});
+
 // --- Agent Policy API ---
 
 // Create a new agent policy
@@ -875,6 +915,12 @@ fastify.post("/api/policies", async (request, reply) => {
   const { agentName, agentInstructions } = request.body;
   if (!agentName || !agentInstructions) {
     return reply.code(400).send({ error: "agentName and agentInstructions are required" });
+  }
+  
+  if (agentInstructions.length > 1000) {
+    return reply.code(400).send({ 
+      error: "Agent instructions too long (1000+ characters). Please shorten for better voice call performance." 
+    });
   }
   try {
     const db = client.db(DB_NAME);
@@ -915,6 +961,57 @@ fastify.get("/api/policies/:id", async (request, reply) => {
     reply.send(policy);
   } catch (error) {
     reply.code(500).send({ error: "Failed to fetch policy" });
+  }
+});
+
+// Update an agent policy by ID
+fastify.put("/api/policies/:id", async (request, reply) => {
+  const { id } = request.params;
+  const { agentName, agentInstructions } = request.body;
+  if (!agentName || !agentInstructions) {
+    return reply.code(400).send({ error: "agentName and agentInstructions are required" });
+  }
+  
+  if (agentInstructions.length > 1000) {
+    return reply.code(400).send({ 
+      error: "Agent instructions too long (1000+ characters). Please shorten for better voice call performance." 
+    });
+  }
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection("agent_policies");
+    const result = await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          agentName, 
+          agentInstructions, 
+          updatedAt: new Date().toISOString() 
+        } 
+      }
+    );
+    if (result.matchedCount === 0) {
+      return reply.code(404).send({ error: "Policy not found" });
+    }
+    reply.send({ message: "Policy updated successfully" });
+  } catch (error) {
+    reply.code(500).send({ error: "Failed to update policy" });
+  }
+});
+
+// Delete an agent policy by ID
+fastify.delete("/api/policies/:id", async (request, reply) => {
+  const { id } = request.params;
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection("agent_policies");
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+    if (result.deletedCount === 0) {
+      return reply.code(404).send({ error: "Policy not found" });
+    }
+    reply.send({ message: "Policy deleted successfully" });
+  } catch (error) {
+    reply.code(500).send({ error: "Failed to delete policy" });
   }
 });
 

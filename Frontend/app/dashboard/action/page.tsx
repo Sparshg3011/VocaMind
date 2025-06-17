@@ -167,6 +167,17 @@ export default function ActionPage() {
         setCallProgress(prev => Math.min(prev + 15, 90))
       }, 500)
 
+      // Debug logging
+      console.log("🐛 DEBUG: Call initiation details:");
+      console.log("Selected Policy ID:", selectedPolicy);
+      console.log("Selected Policy Object:", selectedPolicy_obj);
+      console.log("Backend URL:", backendUrl);
+      console.log("Contacts:", selectedContactsData.map(contact => ({
+        phoneNumber: contact.phone_number,
+        language: contact.language,
+        name: contact.name
+      })));
+
       // Call the real backend API
       const response = await fetch(`${backendUrl}/batch-calls`, {
         method: "POST",
@@ -183,6 +194,15 @@ export default function ActionPage() {
         }),
       })
 
+      console.log("🐛 DEBUG: Response status:", response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log("🐛 DEBUG: Error response:", errorText);
+      } else {
+        const responseData = await response.clone().json();
+        console.log("🐛 DEBUG: Success response:", responseData);
+      }
+
       clearInterval(progressInterval)
       setCallProgress(100)
 
@@ -190,7 +210,11 @@ export default function ActionPage() {
         let errorMessage = "Failed to initiate calls"
         try {
           const errorData = await response.json()
-          errorMessage = errorData.error || errorMessage
+          if (errorData.error === "Agent instructions too long for voice calls") {
+            errorMessage = `❌ Policy Instructions Too Long!\n\n${errorData.details}\n\nPlease edit the selected policy to shorten the instructions.`
+          } else {
+            errorMessage = errorData.error || errorMessage
+          }
         } catch (e) {
           errorMessage = `HTTP ${response.status}: ${response.statusText}`
         }
@@ -279,10 +303,33 @@ export default function ActionPage() {
                 </SelectContent>
               </Select>
               {selectedPolicy_obj && (
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-blue-700 line-clamp-3">
+                <div className={`p-3 rounded-lg ${
+                  selectedPolicy_obj.prompt && selectedPolicy_obj.prompt.length > 1000 
+                    ? 'bg-red-50 border border-red-200' 
+                    : 'bg-blue-50'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-600">Policy Preview</span>
+                    <span className={`text-xs ${
+                      selectedPolicy_obj.prompt && selectedPolicy_obj.prompt.length > 1000 
+                        ? 'text-red-600 font-medium' 
+                        : 'text-gray-500'
+                    }`}>
+                      {selectedPolicy_obj.prompt?.length || 0}/1000 chars
+                    </span>
+                  </div>
+                  <p className={`text-xs line-clamp-3 ${
+                    selectedPolicy_obj.prompt && selectedPolicy_obj.prompt.length > 1000 
+                      ? 'text-red-700' 
+                      : 'text-blue-700'
+                  }`}>
                     {selectedPolicy_obj.prompt}
                   </p>
+                  {selectedPolicy_obj.prompt && selectedPolicy_obj.prompt.length > 1000 && (
+                    <div className="mt-2 text-xs text-red-600 font-medium">
+                      ⚠️ Instructions too long for voice calls! Please shorten this policy.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -310,7 +357,12 @@ export default function ActionPage() {
               <DialogTrigger asChild>
                 <Button 
                   className="w-full bg-green-600 hover:bg-green-700" 
-                  disabled={selectedContacts.length === 0 || !selectedPolicy || callInProgress}
+                  disabled={
+                    selectedContacts.length === 0 || 
+                    !selectedPolicy || 
+                    callInProgress ||
+                    (selectedPolicy_obj?.prompt ? selectedPolicy_obj.prompt.length > 1000 : false)
+                  }
                 >
                   <PlayCircle className="w-4 h-4 mr-2" />
                   {callInProgress ? "Campaign Running..." : "Launch Campaign"}
