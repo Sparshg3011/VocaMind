@@ -1018,33 +1018,7 @@ fastify.delete("/api/policies/:id", async (request, reply) => {
 // Connect to MongoDB when the server starts
 await connectToDatabase();
 
-// Function to trigger batch calls
-async function triggerBatchCalls() {
-    try {
-      const filePath = './phone_numbers.csv'; // Relative path to CSV file
-      const policyId = '68501a43f48944c85f5a3399'; // Default policy ID to use
-
-      console.log(`Attempting to trigger batch calls to ${SERVER_URL}/batch-calls with policyId ${policyId}`);
-
-      const response = await axios.post(`${SERVER_URL}/batch-calls`, {
-        filePath: filePath,
-        policyId: policyId
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Batch calls initiated successfully:', response.data);
-    } catch (error) {
-      console.error('Error initiating batch calls:', 
-        error.response ? error.response.data : error.message
-      );
-    }
-  }
-  
-  // Automatically trigger batch calls when the server starts
-  triggerBatchCalls();
+// Removed automatic batch calls trigger to prevent hardcoded policy ID errors
 
 
 // Graceful shutdown
