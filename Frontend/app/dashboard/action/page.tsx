@@ -94,12 +94,19 @@ export default function ActionPage() {
 
   const fetchPolicies = async () => {
     try {
-      const response = await fetch("/api/policies")
+      // Get backend URL from environment or default to localhost:5050
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+      const response = await fetch(`${backendUrl}/api/policies`)
       if (!response.ok) {
         throw new Error("Failed to fetch policies")
       }
       const data = await response.json()
-      setPolicies(data.policies)
+      // Map agentInstructions to prompt for frontend compatibility
+      const mappedPolicies = data.map((policy: any) => ({
+        ...policy,
+        prompt: policy.agentInstructions || policy.prompt
+      }))
+      setPolicies(mappedPolicies)
     } catch (error) {
       console.error("Error fetching policies:", error)
       setError("Failed to load policies. Please try again.")
@@ -152,18 +159,26 @@ export default function ActionPage() {
     try {
       const selectedContactsData = contacts.filter((contact) => selectedContacts.includes(contact._id))
 
+      // Get backend URL from environment or default to localhost:5050
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5050'
+
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setCallProgress(prev => Math.min(prev + 15, 90))
       }, 500)
 
-      const response = await fetch("/api/calls/initiate", {
+      // Call the real backend API
+      const response = await fetch(`${backendUrl}/batch-calls`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contacts: selectedContactsData,
+          contacts: selectedContactsData.map(contact => ({
+            phoneNumber: contact.phone_number,
+            language: contact.language,
+            name: contact.name
+          })),
           policyId: selectedPolicy,
         }),
       })
@@ -172,17 +187,24 @@ export default function ActionPage() {
       setCallProgress(100)
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to initiate calls")
+        let errorMessage = "Failed to initiate calls"
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+        } catch (e) {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`
+        }
+        console.error("Backend error response:", errorMessage)
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()
-      setSuccess(`Successfully initiated ${data.initiatedCalls} calls`)
+      setSuccess(`Successfully initiated real calls! ${data.message}. Active: ${data.activeCalls}, Queued: ${data.queuedCalls}`)
       setSelectedContacts([])
       setSelectAll(false)
     } catch (error: any) {
       console.error("Error initiating calls:", error)
-      setError(error.message || "Failed to initiate calls")
+      setError(error.message || "Failed to initiate calls. Make sure the backend server is running.")
     } finally {
       setCallInProgress(false)
       setCallProgress(0)

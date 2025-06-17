@@ -21,7 +21,6 @@ import {
   FileText,
   Phone,
   BarChart3,
-  Settings,
   LogOut,
   Brain,
   Sparkles,
@@ -80,12 +79,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
       icon: BarChart3, 
       path: "/dashboard/analytics",
       description: "View call analytics"
-    },
-    { 
-      name: "Settings", 
-      icon: Settings, 
-      path: "/dashboard/settings",
-      description: "System configuration"
     },
   ]
 

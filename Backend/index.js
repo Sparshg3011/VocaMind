@@ -3,6 +3,7 @@ import WebSocket from "ws";
 import dotenv from "dotenv";
 import fastifyFormBody from "@fastify/formbody";
 import fastifyWs from "@fastify/websocket";
+import fastifyCors from "@fastify/cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { MongoClient, ObjectId } from "mongodb";
@@ -79,6 +80,18 @@ const fastify = Fastify({
 
 fastify.register(fastifyFormBody);
 fastify.register(fastifyWs);
+
+// Register CORS to allow frontend connections
+fastify.register(fastifyCors, {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001', 
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+});
 
 // Improved MongoDB connection with retry mechanism
 async function connectToDatabase(retryAttempt = 0, maxRetries = 5) {
@@ -717,12 +730,14 @@ function loadPhoneNumbersFromCSV(filePath) {
   }
 }
 
-// API endpoint to initiate batch calls from CSV file
+// API endpoint to initiate batch calls from CSV file OR contact data
 fastify.post("/batch-calls", async (request, reply) => {
   try {
-    const { filePath, policyId } = request.body;
-    if (!filePath) {
-      return reply.code(400).send({ error: "Missing file path" });
+    const { filePath, contacts, policyId } = request.body;
+    
+    // Check if we have either filePath OR contacts
+    if (!filePath && (!contacts || !Array.isArray(contacts) || contacts.length === 0)) {
+      return reply.code(400).send({ error: "Missing file path or contacts data" });
     }
 
     // Fetch agent instructions from policy if policyId is provided
@@ -737,9 +752,22 @@ fastify.post("/batch-calls", async (request, reply) => {
       agentInstructions = policy.agentInstructions;
     }
 
-    const phoneNumbers = loadPhoneNumbersFromCSV(filePath);
-    if (phoneNumbers.length === 0) {
-      return reply.code(400).send({ error: "No valid phone numbers found in CSV" });
+    let phoneNumbers = [];
+
+    // If filePath is provided, load from CSV
+    if (filePath) {
+      phoneNumbers = loadPhoneNumbersFromCSV(filePath);
+      if (phoneNumbers.length === 0) {
+        return reply.code(400).send({ error: "No valid phone numbers found in CSV" });
+      }
+    } 
+    // If contacts are provided directly, use them
+    else if (contacts) {
+      phoneNumbers = contacts.map(contact => ({
+        phoneNumber: contact.phoneNumber || contact.phone_number,
+        language: contact.language || 'en',
+        name: contact.name || ''
+      }));
     }
 
     // Pass agentInstructions to each call session
@@ -765,6 +793,61 @@ fastify.post("/batch-calls", async (request, reply) => {
   } catch (error) {
     console.error("Error processing batch calls:", error);
     reply.code(500).send({ error: "Failed to process batch calls" });
+  }
+});
+
+// API endpoint to initiate calls directly from contact data (for frontend)
+fastify.post("/calls/initiate", async (request, reply) => {
+  try {
+    const { contacts, policyId } = request.body;
+    
+    if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+      return reply.code(400).send({ error: "No contacts provided" });
+    }
+
+    // Fetch agent instructions from policy if policyId is provided
+    let agentInstructions = null;
+    if (policyId) {
+      const db = client.db(DB_NAME);
+      const collection = db.collection("agent_policies");
+      const policy = await collection.findOne({ _id: new ObjectId(policyId) });
+      if (!policy) {
+        return reply.code(400).send({ error: "Policy not found" });
+      }
+      agentInstructions = policy.agentInstructions;
+    }
+
+    // Convert contacts to the format expected by makeOutboundCall
+    const phoneNumbers = contacts.map(contact => ({
+      phoneNumber: contact.phoneNumber || contact.phone_number,
+      language: contact.language || 'en',
+      name: contact.name || '',
+      agentInstructions
+    }));
+
+    // Pass agentInstructions to each call session
+    const initialBatch = phoneNumbers.slice(0, MAX_CONCURRENT_CALLS);
+    const remainingBatch = phoneNumbers.slice(MAX_CONCURRENT_CALLS);
+
+    remainingBatch.forEach(entry => {
+      callQueue.push(entry);
+    });
+
+    const callPromises = initialBatch.map(entry =>
+      makeOutboundCall(entry.phoneNumber, entry.language, entry.agentInstructions)
+    );
+
+    await Promise.allSettled(callPromises);
+
+    reply.send({
+      message: `Started ${initialBatch.length} calls, queued ${remainingBatch.length} calls`,
+      totalCalls: phoneNumbers.length,
+      activeCalls: activeCallCount,
+      queuedCalls: callQueue.length
+    });
+  } catch (error) {
+    console.error("Error processing direct calls:", error);
+    reply.code(500).send({ error: "Failed to initiate calls" });
   }
 });
 
