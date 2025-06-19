@@ -28,7 +28,10 @@
         "dotenv": "^16.5.0",
         "fastify": "^5.3.0",
         "mongodb": "^6.15.0",
+        "node-fetch": "^3.3.2",
+        "openai": "^5.5.1",
         "pino-pretty": "^13.0.0",
+        "sentiment": "^5.0.2",
         "twilio": "^5.5.2",
         "ws": "^8.18.1"
     },

@@ -37,8 +37,11 @@ import {
   PlayCircle,
   StopCircle,
   Users,
+  Brain,
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import SentimentAnalysisCard from '@/components/analytics/SentimentAnalysisCard'
+import TranscriptChat from '@/components/analytics/TranscriptChat'
 
 interface Call {
   _id: string
@@ -60,6 +63,7 @@ interface Call {
   createdAt: string
 }
 
+
 export default function AnalyticsPage() {
   const [calls, setCalls] = useState<Call[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,6 +74,7 @@ export default function AnalyticsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [openTranscriptDialog, setOpenTranscriptDialog] = useState(false)
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
+  const [loadingTranscript, setLoadingTranscript] = useState(false)
   const [stats, setStats] = useState({
     totalCalls: 0,
     avgDuration: 0,
@@ -77,17 +82,52 @@ export default function AnalyticsPage() {
     callsByLanguage: [] as { language: string; count: number }[],
     callsByLocation: [] as { location: string; count: number }[],
   })
+  const [activeTranscriptTab, setActiveTranscriptTab] = useState<'transcript' | 'chat'>('transcript')
+  const [showSentimentDialog, setShowSentimentDialog] = useState(false)
+  const [selectedCallForSentiment, setSelectedCallForSentiment] = useState<Call | null>(null)
 
   const fetchCalls = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/calls?page=${page}&limit=${rowsPerPage}&search=${searchTerm}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch calls")
+      
+      // Fetch conversations from backend
+      const conversationsResponse = await fetch(`http://localhost:5050/api/conversations?page=${page}&limit=${rowsPerPage}&search=${searchTerm}`)
+      if (!conversationsResponse.ok) {
+        throw new Error("Failed to fetch conversations")
       }
-      const data = await response.json()
-      setCalls(data.calls)
-      setTotalCalls(data.total)
+      const conversationsData = await conversationsResponse.json()
+      
+      // Fetch contacts to get contact names
+      const contactsResponse = await fetch(`/api/contacts?limit=1000`) // Get all contacts
+      let contactsMap = new Map()
+      
+      if (contactsResponse.ok) {
+        const contactsData = await contactsResponse.json()
+        // Create a map of phone numbers to contact names
+        contactsData.contacts.forEach((contact: any) => {
+          contactsMap.set(contact.phone_number, contact.name)
+        })
+      }
+      
+      // Transform conversation data to call format with proper contact names
+      const transformedCalls = conversationsData.conversations.map((conv: any) => ({
+        _id: conv._id,
+        phoneNumber: conv.phone_number,
+        language: 'en', // Default since not in conversation data
+        contactName: contactsMap.get(conv.phone_number) || 'Unknown Contact',
+        agentName: 'AI Agent',
+        callSid: conv.call_sid,
+        status: conv.call_status,
+        duration: conv.call_duration || 0,
+        startTime: conv.timestamp,
+        endTime: conv.timestamp,
+        transcript: conv.transcript || [],
+        location: 'Unknown',
+        createdAt: conv.timestamp
+      }))
+      
+      setCalls(transformedCalls)
+      setTotalCalls(conversationsData.total)
     } catch (error) {
       console.error("Error fetching calls:", error)
       setError("Failed to load calls. Please try again.")
@@ -98,14 +138,20 @@ export default function AnalyticsPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/calls/stats")
+      const response = await fetch("http://localhost:5050/api/conversations/stats")
       if (!response.ok) {
-        throw new Error("Failed to fetch call statistics")
+        throw new Error("Failed to fetch conversation statistics")
       }
       const data = await response.json()
-      setStats(data)
+      setStats({
+        totalCalls: data.totalConversations,
+        avgDuration: data.avgDuration,
+        totalMessages: 0, // We'd need to calculate this from transcript data
+        callsByLanguage: [], // Not available in conversation data
+        callsByLocation: [] // Not available in conversation data
+      })
     } catch (error) {
-      console.error("Error fetching call statistics:", error)
+      console.error("Error fetching conversation statistics:", error)
     }
   }
 
@@ -147,8 +193,38 @@ export default function AnalyticsPage() {
   }
 
   const handleViewTranscript = (call: Call) => {
-    setSelectedCall(call)
+    // Transform the transcript data to the expected format
+    const updatedCall = {
+      ...call,
+      transcript: call.transcript.map((msg: any) => ({
+        timestamp: msg.timestamp,
+        role: msg.role, // Keep original role names: 'User' or 'AI_Agent'
+        text: msg.text
+      }))
+    }
+    setSelectedCall(updatedCall)
+    setActiveTranscriptTab('transcript')
     setOpenTranscriptDialog(true)
+  }
+
+  const handleChatWithTranscript = (call: Call) => {
+    // Transform the transcript data to the expected format
+    const updatedCall = {
+      ...call,
+      transcript: call.transcript.map((msg: any) => ({
+        timestamp: msg.timestamp,
+        role: msg.role, // Keep original role names: 'User' or 'AI_Agent'
+        text: msg.text
+      }))
+    }
+    setSelectedCall(updatedCall)
+    setActiveTranscriptTab('chat')
+    setOpenTranscriptDialog(true)
+  }
+
+  const handleSentimentAnalysis = (call: Call) => {
+    setSelectedCallForSentiment(call)
+    setShowSentimentDialog(true)
   }
 
   const formatDuration = (seconds: number) => {
@@ -174,6 +250,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -428,56 +505,17 @@ export default function AnalyticsPage() {
                       {new Date(call.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="w-8 h-8"
-                            onClick={() => setSelectedCall(call)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[80vh]">
-                          <DialogHeader>
-                            <DialogTitle>Call Transcript</DialogTitle>
-                            <DialogDescription>
-                              Call with {call.contactName} ({call.phoneNumber}) - {formatDuration(call.duration)}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <ScrollArea className="max-h-96">
-                            {call.transcript && call.transcript.length > 0 ? (
-                              <div className="space-y-4">
-                                {call.transcript.map((message, index) => (
-                                  <div key={index} className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                                    <div className={`max-w-[80%] rounded-lg p-3 ${
-                                      message.role === 'assistant' 
-                                        ? 'bg-blue-50 text-blue-900' 
-                                        : 'bg-gray-100 text-gray-900'
-                                    }`}>
-                                      <div className="flex items-center space-x-2 mb-1">
-                                        <span className="text-xs font-medium">
-                                          {message.role === 'assistant' ? 'AI Agent' : 'Customer'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          {new Date(message.timestamp).toLocaleTimeString()}
-                                        </span>
-                                      </div>
-                                      <p className="text-sm">{message.text}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-8 text-gray-500">
-                                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                                <p>No transcript available for this call</p>
-                              </div>
-                            )}
-                          </ScrollArea>
-                        </DialogContent>
-                      </Dialog>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => handleViewTranscript(call)}>
+                          <Eye className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-100" onClick={() => handleChatWithTranscript(call)}>
+                          <MessageSquare className="w-3 h-3" />
+                        </Button>
+                        <Button size="sm" variant="outline" className="bg-purple-50 text-purple-700 hover:bg-purple-100" onClick={() => handleSentimentAnalysis(call)}>
+                          <Brain className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -486,6 +524,65 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog open={openTranscriptDialog} onOpenChange={setOpenTranscriptDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Transcript & Chat</DialogTitle>
+            <DialogDescription>
+              Ask questions or review the transcript below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-4 mb-4">
+            <button
+              className={`px-4 py-2 rounded ${activeTranscriptTab === 'transcript' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTranscriptTab('transcript')}
+            >
+              Transcript
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${activeTranscriptTab === 'chat' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTranscriptTab('chat')}
+            >
+              Chat
+            </button>
+          </div>
+          {activeTranscriptTab === 'transcript' && (
+            <ScrollArea className="max-h-96 border rounded p-3 bg-white/80 text-sm">
+              {selectedCall?.transcript?.map((entry, idx) => (
+                <div key={idx} className="mb-2">
+                  <span className="font-semibold mr-2">{entry.role}:</span>
+                  <span>{entry.text}</span>
+                </div>
+              )) || (
+                <div>No transcript available.</div>
+              )}
+            </ScrollArea>
+          )}
+          {activeTranscriptTab === 'chat' && (
+            <TranscriptChat transcript={selectedCall?.transcript?.map(e => `${e.role}: ${e.text}`).join(' ') || ''} />
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Sentiment Analysis Dialog */}
+      <Dialog open={showSentimentDialog} onOpenChange={setShowSentimentDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-600" />
+              Sentiment Analysis
+            </DialogTitle>
+            <DialogDescription>
+              AI-powered sentiment analysis for {selectedCallForSentiment?.contactName} ({selectedCallForSentiment?.phoneNumber})
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            {selectedCallForSentiment && (
+              <SentimentAnalysisCard selectedCall={selectedCallForSentiment} />
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
