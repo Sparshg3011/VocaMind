@@ -70,6 +70,7 @@ export default function AnalyticsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [openTranscriptDialog, setOpenTranscriptDialog] = useState(false)
   const [selectedCall, setSelectedCall] = useState<Call | null>(null)
+  const [loadingTranscript, setLoadingTranscript] = useState(false)
   const [stats, setStats] = useState({
     totalCalls: 0,
     avgDuration: 0,
@@ -81,13 +82,45 @@ export default function AnalyticsPage() {
   const fetchCalls = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/calls?page=${page}&limit=${rowsPerPage}&search=${searchTerm}`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch calls")
+      
+      // Fetch conversations from backend
+      const conversationsResponse = await fetch(`http://localhost:5050/api/conversations?page=${page}&limit=${rowsPerPage}&search=${searchTerm}`)
+      if (!conversationsResponse.ok) {
+        throw new Error("Failed to fetch conversations")
       }
-      const data = await response.json()
-      setCalls(data.calls)
-      setTotalCalls(data.total)
+      const conversationsData = await conversationsResponse.json()
+      
+      // Fetch contacts to get contact names
+      const contactsResponse = await fetch(`/api/contacts?limit=1000`) // Get all contacts
+      let contactsMap = new Map()
+      
+      if (contactsResponse.ok) {
+        const contactsData = await contactsResponse.json()
+        // Create a map of phone numbers to contact names
+        contactsData.contacts.forEach((contact: any) => {
+          contactsMap.set(contact.phone_number, contact.name)
+        })
+      }
+      
+      // Transform conversation data to call format with proper contact names
+      const transformedCalls = conversationsData.conversations.map((conv: any) => ({
+        _id: conv._id,
+        phoneNumber: conv.phone_number,
+        language: 'en', // Default since not in conversation data
+        contactName: contactsMap.get(conv.phone_number) || 'Unknown Contact',
+        agentName: 'AI Agent',
+        callSid: conv.call_sid,
+        status: conv.call_status,
+        duration: conv.call_duration || 0,
+        startTime: conv.timestamp,
+        endTime: conv.timestamp,
+        transcript: conv.transcript || [],
+        location: 'Unknown',
+        createdAt: conv.timestamp
+      }))
+      
+      setCalls(transformedCalls)
+      setTotalCalls(conversationsData.total)
     } catch (error) {
       console.error("Error fetching calls:", error)
       setError("Failed to load calls. Please try again.")
@@ -98,14 +131,20 @@ export default function AnalyticsPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("/api/calls/stats")
+      const response = await fetch("http://localhost:5050/api/conversations/stats")
       if (!response.ok) {
-        throw new Error("Failed to fetch call statistics")
+        throw new Error("Failed to fetch conversation statistics")
       }
       const data = await response.json()
-      setStats(data)
+      setStats({
+        totalCalls: data.totalConversations,
+        avgDuration: data.avgDuration,
+        totalMessages: 0, // We'd need to calculate this from transcript data
+        callsByLanguage: [], // Not available in conversation data
+        callsByLocation: [] // Not available in conversation data
+      })
     } catch (error) {
-      console.error("Error fetching call statistics:", error)
+      console.error("Error fetching conversation statistics:", error)
     }
   }
 
@@ -146,8 +185,17 @@ export default function AnalyticsPage() {
     }
   }
 
-  const handleViewTranscript = (call: Call) => {
-    setSelectedCall(call)
+  const handleViewTranscript = async (call: Call) => {
+    // Transform the transcript data to the expected format
+    const updatedCall = {
+      ...call,
+      transcript: call.transcript.map((msg: any) => ({
+        timestamp: msg.timestamp,
+        role: msg.role, // Keep original role names: 'User' or 'AI_Agent'
+        text: msg.text
+      }))
+    }
+    setSelectedCall(updatedCall)
     setOpenTranscriptDialog(true)
   }
 
@@ -450,21 +498,21 @@ export default function AnalyticsPage() {
                             {call.transcript && call.transcript.length > 0 ? (
                               <div className="space-y-4">
                                 {call.transcript.map((message, index) => (
-                                  <div key={index} className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
+                                  <div key={index} className={`flex ${message.role === 'User' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[80%] rounded-lg p-3 ${
-                                      message.role === 'assistant' 
-                                        ? 'bg-blue-50 text-blue-900' 
-                                        : 'bg-gray-100 text-gray-900'
+                                      message.role === 'User' 
+                                        ? 'bg-green-50 text-green-900 border border-green-200' 
+                                        : 'bg-blue-50 text-blue-900 border border-blue-200'
                                     }`}>
                                       <div className="flex items-center space-x-2 mb-1">
                                         <span className="text-xs font-medium">
-                                          {message.role === 'assistant' ? 'AI Agent' : 'Customer'}
+                                          {message.role === 'User' ? 'Customer' : 'AI Agent'}
                                         </span>
                                         <span className="text-xs text-gray-500">
                                           {new Date(message.timestamp).toLocaleTimeString()}
                                         </span>
                                       </div>
-                                      <p className="text-sm">{message.text}</p>
+                                      <p className="text-sm whitespace-pre-wrap">{message.text.replace(/\\n/g, '')}</p>
                                     </div>
                                   </div>
                                 ))}
