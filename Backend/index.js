@@ -908,6 +908,111 @@ fastify.get("/api/contacts", async (request, reply) => {
   }
 });
 
+// --- Conversations API ---
+
+// Get conversations with pagination and filtering
+fastify.get("/api/conversations", async (request, reply) => {
+  try {
+    const page = parseInt(request.query.page || "0");
+    const limit = parseInt(request.query.limit || "10");
+    const search = request.query.search || "";
+    const skip = page * limit;
+
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
+
+    // Build search query
+    const query = {};
+    if (search) {
+      query.$or = [
+        { phone_number: { $regex: search, $options: "i" } },
+        { call_sid: { $regex: search, $options: "i" } },
+        { stream_id: { $regex: search, $options: "i" } },
+        { "transcript.text": { $regex: search, $options: "i" } }
+      ];
+    }
+
+    // Get total count
+    const total = await collection.countDocuments(query);
+
+    // Get paginated conversations
+    const conversations = await collection.find(query)
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    reply.send({ conversations, total });
+  } catch (error) {
+    console.error("Error fetching conversations:", error);
+    reply.code(500).send({ error: "Failed to fetch conversations" });
+  }
+});
+
+// Get a single conversation by ID
+fastify.get("/api/conversations/:id", async (request, reply) => {
+  const { id } = request.params;
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
+    
+    // Try to find by MongoDB _id first, then by custom id
+    let conversation;
+    try {
+      conversation = await collection.findOne({ _id: new ObjectId(id) });
+    } catch (err) {
+      // If ObjectId conversion fails, try by custom id field
+      conversation = await collection.findOne({ id: parseInt(id) });
+    }
+    
+    if (!conversation) {
+      return reply.code(404).send({ error: "Conversation not found" });
+    }
+    
+    reply.send(conversation);
+  } catch (error) {
+    console.error("Error fetching conversation:", error);
+    reply.code(500).send({ error: "Failed to fetch conversation" });
+  }
+});
+
+// Get conversation statistics
+fastify.get("/api/conversations/stats", async (request, reply) => {
+  try {
+    const db = client.db(DB_NAME);
+    const collection = db.collection(COLLECTION_NAME);
+
+    // Get basic stats
+    const totalConversations = await collection.countDocuments();
+    const completedCalls = await collection.countDocuments({ call_status: "completed" });
+    
+    // Get average call duration
+    const avgDurationResult = await collection.aggregate([
+      { $match: { call_duration: { $exists: true, $type: "number" } } },
+      { $group: { _id: null, avgDuration: { $avg: "$call_duration" } } }
+    ]).toArray();
+    
+    const avgDuration = avgDurationResult.length > 0 ? Math.round(avgDurationResult[0].avgDuration) : 0;
+
+    // Get recent conversations count (last 24 hours)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const recentConversations = await collection.countDocuments({
+      timestamp: { $gte: yesterday.toISOString() }
+    });
+
+    reply.send({
+      totalConversations,
+      completedCalls,
+      avgDuration,
+      recentConversations
+    });
+  } catch (error) {
+    console.error("Error fetching conversation stats:", error);
+    reply.code(500).send({ error: "Failed to fetch conversation stats" });
+  }
+});
+
 // --- Agent Policy API ---
 
 // Create a new agent policy
