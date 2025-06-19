@@ -39,6 +39,7 @@ import {
   Users,
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import SentimentAnalysisCard from '@/components/analytics/SentimentAnalysisCard'
 
 interface Call {
   _id: string
@@ -187,7 +188,8 @@ export default function AnalyticsPage() {
           </Badge>
         </div>
       </div>
-
+      {/* Sentiment Analysis Section */}
+      <SentimentAnalysisCard />
       {/* Analytics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="border-0 shadow-sm bg-gradient-to-r from-blue-50 to-blue-100">

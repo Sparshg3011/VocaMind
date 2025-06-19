@@ -10,6 +10,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 import twilio from "twilio";
+import Sentiment from 'sentiment';
 
 // Add this import at the top of the file
 import axios from 'axios';
@@ -1013,6 +1014,18 @@ fastify.delete("/api/policies/:id", async (request, reply) => {
   } catch (error) {
     reply.code(500).send({ error: "Failed to delete policy" });
   }
+});
+
+// Sentiment analysis test endpoint
+fastify.get('/api/sentiment-test', async (request, reply) => {
+  const sentiment = new Sentiment();
+  // Hardcoded example text (can be replaced with any text for testing)
+  const testText = `SDR: Hi Tom, this is Matt with Stratifi. You were not expecting my call. Want to hang up now or roll the dice? Prospect: [Slight chuckle]... What's this about? (State the problem with the competition) SDR: It's pretty common to see wealth advisors cobbling together tools like Riskalyze, Totem, and Hidden Levers in order to do risk profiling of clients. How are you handling risk profiling today? Prospect: I've used Riskalyze before, not a fan. Where did you say you were calling from again? (Resist the urge to pitch! Focus on how they're currently getting the job done.) SDR: I'm with Stratifi. It's pretty common to hear wealth advisors not being satisfied with them. Was it the price or how much work it took you that turned you off? Prospect: I didn't trust the scores. We did a lot of copy/paste work and only used part of the reports it generated. (Be curious) SDR: How important is the report for you? Do you email your clients your reports after meetings? Prospect: Yes, it's a big difference on our approach to services. We keep our clients informed and prepared with branded reports. (Validate and qualify) SDR: I hear that quite often Tom. Service is everything in this business. Well, I'd imagine my timing is most likely wrong, unless you're open to looking at avoiding wasting time on custom reporting? Prospect: What do you all do? (Be refreshingly calm. Lean back, and let them come to you) SDR: Stratifi was born when 3 quants and a rocket scientist got into a room to make risk profiling easy for the rest of us. Advisors hate not having ready made reports for their clients, so we fixed that. Prospect: How does it work? (Give a teaser, then close) SDR: We stopped using outdated modelling and focus on risk exposure instead of just volatility. I know I promised to take only a bit in the beginning of the call. Would you have time in the next day or two to discuss it properly? Prospect: Sure, I can do Thursday. Can you send me something beforehand to see it? SDR: Absolutely. I'll attach an example to the calendar invite`;
+  const result = sentiment.analyze(testText);
+  reply.send({
+    text: testText,
+    sentiment: result
+  });
 });
 
 // Connect to MongoDB when the server starts
