@@ -23,9 +23,6 @@ export default function SentimentAnalysisCard() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [loadingAnswer, setLoadingAnswer] = useState(false);
 
   useEffect(() => {
     fetch("http://localhost:5050/api/sentiment-test")
@@ -42,19 +39,6 @@ export default function SentimentAnalysisCard() {
         setLoading(false);
       });
   }, []);
-
-  const handleAsk = async () => {
-    setLoadingAnswer(true);
-    // Replace with your backend/AI endpoint
-    const res = await fetch("http://localhost:5050/api/ask-about-transcript", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript: data.text, question }),
-    });
-    const data = await res.json();
-    setAnswer(data.answer);
-    setLoadingAnswer(false);
-  };
 
   if (loading) {
     return (
@@ -176,31 +160,9 @@ export default function SentimentAnalysisCard() {
         {/* Transcript Text */}
         <div className="mt-6">
           <div className="font-semibold mb-1">Analyzed Transcript</div>
-          <ScrollArea className="max-h-96 border rounded p-3 bg-white/80 text-sm overflow-auto">
+          <ScrollArea className="max-h-40 border rounded p-3 bg-white/80 text-sm">
             {text}
           </ScrollArea>
-          <div className="mt-4">
-            <input
-              type="text"
-              className="border rounded p-2 w-full"
-              placeholder="Ask a question about this transcript..."
-              value={question}
-              onChange={e => setQuestion(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleAsk()}
-            />
-            <button
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
-              onClick={handleAsk}
-              disabled={loadingAnswer}
-            >
-              {loadingAnswer ? "Asking..." : "Ask"}
-            </button>
-            {answer && (
-              <div className="mt-2 p-3 bg-gray-100 rounded">
-                <strong>Answer:</strong> {answer}
-              </div>
-            )}
-          </div>
         </div>
       </CardContent>
     </Card>

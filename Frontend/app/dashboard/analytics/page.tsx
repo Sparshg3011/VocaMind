@@ -40,6 +40,7 @@ import {
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import SentimentAnalysisCard from '@/components/analytics/SentimentAnalysisCard'
+import TranscriptChat from '@/components/analytics/TranscriptChat'
 
 interface Call {
   _id: string
@@ -61,6 +62,8 @@ interface Call {
   createdAt: string
 }
 
+const HARDCODED_TRANSCRIPT = `SDR: Hi Tom, this is Matt with Stratifi. You were not expecting my call. Want to hang up now or roll the dice? Prospect: [Slight chuckle]... What's this about? (State the problem with the competition) SDR: It's pretty common to see wealth advisors cobbling together tools like Riskalyze, Totem, and Hidden Levers in order to do risk profiling of clients. How are you handling risk profiling today? Prospect: I've used Riskalyze before, not a fan. Where did you say you were calling from again? (Resist the urge to pitch! Focus on how they're currently getting the job done.) SDR: I'm with Stratifi. It's pretty common to hear wealth advisors not being satisfied with them. Was it the price or how much work it took you that turned you off? Prospect: I didn't trust the scores. We did a lot of copy/paste work and only used part of the reports it generated. (Be curious) SDR: How important is the report for you? Do you email your clients your reports after meetings? Prospect: Yes, it's a big difference on our approach to services. We keep our clients informed and prepared with branded reports. (Validate and qualify) SDR: I hear that quite often Tom. Service is everything in this business. Well, I'd imagine my timing is most likely wrong, unless you're open to looking at avoiding wasting time on custom reporting? Prospect: What do you all do? (Be refreshingly calm. Lean back, and let them come to you) SDR: Stratifi was born when 3 quants and a rocket scientist got into a room to make risk profiling easy for the rest of us. Advisors hate not having ready made reports for their clients, so we fixed that. Prospect: How does it work? (Give a teaser, then close) SDR: We stopped using outdated modelling and focus on risk exposure instead of just volatility. I know I promised to take only a bit in the beginning of the call. Would you have time in the next day or two to discuss it properly? Prospect: Sure, I can do Thursday. Can you send me something beforehand to see it? SDR: Absolutely. I'll attach an example to the calendar invite`;
+
 export default function AnalyticsPage() {
   const [calls, setCalls] = useState<Call[]>([])
   const [loading, setLoading] = useState(true)
@@ -78,6 +81,8 @@ export default function AnalyticsPage() {
     callsByLanguage: [] as { language: string; count: number }[],
     callsByLocation: [] as { location: string; count: number }[],
   })
+  const [activeTranscriptTab, setActiveTranscriptTab] = useState<'transcript' | 'chat'>('transcript')
+  const [showGlobalChat, setShowGlobalChat] = useState(false)
 
   const fetchCalls = async () => {
     try {
@@ -149,6 +154,13 @@ export default function AnalyticsPage() {
 
   const handleViewTranscript = (call: Call) => {
     setSelectedCall(call)
+    setActiveTranscriptTab('transcript')
+    setOpenTranscriptDialog(true)
+  }
+
+  const handleChatWithTranscript = (call: Call) => {
+    setSelectedCall(call)
+    setActiveTranscriptTab('chat')
     setOpenTranscriptDialog(true)
   }
 
@@ -175,6 +187,23 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Global Chat with Transcript Button */}
+      <div className="flex justify-end">
+        <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => { setShowGlobalChat(true); setActiveTranscriptTab('chat'); }}>
+          Chat with Transcript
+        </Button>
+      </div>
+      <Dialog open={showGlobalChat} onOpenChange={setShowGlobalChat}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Chat with Transcript</DialogTitle>
+            <DialogDescription>
+              Ask questions about the transcript below.
+            </DialogDescription>
+          </DialogHeader>
+          <TranscriptChat transcript={HARDCODED_TRANSCRIPT} />
+        </DialogContent>
+      </Dialog>
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -430,56 +459,12 @@ export default function AnalyticsPage() {
                       {new Date(call.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="w-8 h-8"
-                            onClick={() => setSelectedCall(call)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[80vh]">
-                          <DialogHeader>
-                            <DialogTitle>Call Transcript</DialogTitle>
-                            <DialogDescription>
-                              Call with {call.contactName} ({call.phoneNumber}) - {formatDuration(call.duration)}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <ScrollArea className="max-h-96">
-                            {call.transcript && call.transcript.length > 0 ? (
-                              <div className="space-y-4">
-                                {call.transcript.map((message, index) => (
-                                  <div key={index} className={`flex ${message.role === 'assistant' ? 'justify-start' : 'justify-end'}`}>
-                                    <div className={`max-w-[80%] rounded-lg p-3 ${
-                                      message.role === 'assistant' 
-                                        ? 'bg-blue-50 text-blue-900' 
-                                        : 'bg-gray-100 text-gray-900'
-                                    }`}>
-                                      <div className="flex items-center space-x-2 mb-1">
-                                        <span className="text-xs font-medium">
-                                          {message.role === 'assistant' ? 'AI Agent' : 'Customer'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          {new Date(message.timestamp).toLocaleTimeString()}
-                                        </span>
-                                      </div>
-                                      <p className="text-sm">{message.text}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-8 text-gray-500">
-                                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                                <p>No transcript available for this call</p>
-                              </div>
-                            )}
-                          </ScrollArea>
-                        </DialogContent>
-                      </Dialog>
+                      <Button size="sm" variant="outline" onClick={() => handleViewTranscript(call)}>
+                        View Transcript
+                      </Button>
+                      <Button size="sm" className="ml-2 bg-blue-600 text-white hover:bg-blue-700" onClick={() => handleChatWithTranscript(call)}>
+                        Chat with Transcript
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -488,6 +473,45 @@ export default function AnalyticsPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog open={openTranscriptDialog} onOpenChange={setOpenTranscriptDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Transcript & Chat</DialogTitle>
+            <DialogDescription>
+              Ask questions or review the transcript below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-4 mb-4">
+            <button
+              className={`px-4 py-2 rounded ${activeTranscriptTab === 'transcript' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTranscriptTab('transcript')}
+            >
+              Transcript
+            </button>
+            <button
+              className={`px-4 py-2 rounded ${activeTranscriptTab === 'chat' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              onClick={() => setActiveTranscriptTab('chat')}
+            >
+              Chat
+            </button>
+          </div>
+          {activeTranscriptTab === 'transcript' && (
+            <ScrollArea className="max-h-96 border rounded p-3 bg-white/80 text-sm">
+              {selectedCall?.transcript?.map((entry, idx) => (
+                <div key={idx} className="mb-2">
+                  <span className="font-semibold mr-2">{entry.role}:</span>
+                  <span>{entry.text}</span>
+                </div>
+              )) || (
+                <div>No transcript available.</div>
+              )}
+            </ScrollArea>
+          )}
+          {activeTranscriptTab === 'chat' && (
+            <TranscriptChat transcript={selectedCall?.transcript?.map(e => `${e.role}: ${e.text}`).join(' ') || ''} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
