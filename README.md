@@ -1,99 +1,134 @@
+<div align="center">
+
 # VocaMind
 
-**An AI-Powered Outbound Calling System with Real-Time Analytics**
+**AI-powered outbound calling with real-time sentiment analysis and conversation insights.**
 
-VocaMind is a sophisticated voice communication platform that combines AI-powered conversation capabilities with comprehensive call management and analytics. The system enables automated outbound calling with real-time sentiment analysis, conversation insights, and advanced reporting capabilities.
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Fastify](https://img.shields.io/badge/Fastify-000000?style=for-the-badge&logo=fastify&logoColor=white)](https://www.fastify.io/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Twilio](https://img.shields.io/badge/Twilio-F22F46?style=for-the-badge&logo=twilio&logoColor=white)](https://www.twilio.com/)
+[![Azure](https://img.shields.io/badge/Azure_OpenAI-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
+[![License](https://img.shields.io/badge/License-ISC-green?style=for-the-badge)](LICENSE)
+
+[Features](#features) · [Architecture](#architecture) · [Quick Start](#quick-start) · [API Reference](#api-reference) · [Contributing](#contributing)
+
+</div>
+
+---
+
+## About
+
+VocaMind is a voice communication platform that automates outbound calling campaigns while providing real-time AI-powered conversations, live sentiment analysis, and comprehensive analytics dashboards. Upload a CSV of contacts, launch a campaign, and watch as VocaMind handles conversations in 6 languages — with every call scored, transcribed, and analyzed.
+
+---
 
 ## Features
 
-### Core Functionality
-- **AI-Powered Conversations**: Integration with Azure OpenAI Realtime API for natural voice interactions
-- **Automated Outbound Calls**: Bulk calling system using Twilio for phone number lists
-- **Real-Time Audio Streaming**: WebSocket-based audio streaming between Twilio and Azure OpenAI
-- **Multi-Language Support**: Support for English, Spanish, Chinese, Russian, Haitian Creole, and Korean
-- **Sentiment Analysis**: Real-time sentiment scoring and analysis of conversations
-- **Call Recording**: Automatic call recording with status tracking
+| Feature | Description |
+|:--------|:------------|
+| **AI Voice Conversations** | Natural voice interactions powered by Azure OpenAI Realtime API |
+| **Bulk Outbound Calls** | Upload CSV contact lists and launch automated calling campaigns via Twilio |
+| **Multi-Language Support** | English, Spanish, Chinese, Russian, Haitian Creole, and Korean |
+| **Live Sentiment Analysis** | Real-time sentiment scoring with positive/negative keyword tracking |
+| **Call Recording** | Automatic recording with transcription and status tracking |
+| **Analytics Dashboard** | Interactive charts, call metrics, and performance tracking with Recharts |
+| **Interactive Transcripts** | Chat-style transcript viewer with color-coded sentiment indicators |
+| **Data Export** | Export call data and analytics for external analysis |
+| **Contact Management** | Upload, organize, and manage contact lists |
+| **Policy Engine** | Configure call guidelines and conversation policies |
 
-### Analytics & Insights
-- **Conversation Analytics**: Detailed sentiment analysis with positive/negative word tracking
-- **Call Statistics**: Comprehensive call metrics and performance tracking
-- **Real-Time Dashboard**: Live monitoring of active calls and queue status
-- **Interactive Transcripts**: Chat-style transcript viewing with sentiment indicators
-- **Export Capabilities**: Data export functionality for further analysis
-
-### Management Features
-- **Contact Management**: Upload and manage contact lists
-- **Policy Management**: Configure call policies and guidelines
-- **User Authentication**: Secure login and session management
-- **Settings Management**: Configurable system settings and preferences
+---
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph Client ["Frontend — Next.js 14 / TypeScript"]
+        A[Dashboard]
+        B[Analytics View]
+        C[Contact Manager]
+        D[Transcript Viewer]
+        E[Settings / Policy]
+    end
+
+    subgraph Server ["Backend — Node.js / Fastify"]
+        F[Call Orchestrator]
+        G[WebSocket Server<br/>Audio Streaming]
+        H[Sentiment Analyzer]
+        I[Twilio Webhook<br/>Handlers]
+    end
+
+    subgraph External ["External Services"]
+        J[Twilio<br/>Telephony]
+        K[Azure OpenAI<br/>Realtime API]
+    end
+
+    subgraph Storage ["Data Layer"]
+        L[(MongoDB)]
+    end
+
+    A & B & C & D --> F
+    F -->|Initiate Calls| J
+    J -->|Voice Stream| G
+    G <-->|Real-time Audio| K
+    G --> H
+    H --> L
+    I -->|Status Updates| L
+    J -->|Webhooks| I
+    A -->|Live Updates| L
+
+    style Client fill:#0a0a0a,stroke:#F22F46,stroke-width:2px,color:#fff
+    style Server fill:#0a0a0a,stroke:#0078D4,stroke-width:2px,color:#fff
+    style External fill:#0a0a0a,stroke:#f59e0b,stroke-width:2px,color:#fff
+    style Storage fill:#0a0a0a,stroke:#47A248,stroke-width:2px,color:#fff
 ```
-VocaMind/
-├── Backend/                 # Node.js/Fastify API Server
-│   ├── index.js            # Main server entry point
-│   ├── server.js           # Fastify server configuration
-│   ├── demo.js             # Demo functionality
-│   ├── test-sentiment.js   # Sentiment analysis testing
-│   └── phone_numbers.csv   # Sample phone number data
-│
-└── Frontend/               # Next.js React Application
-    ├── app/                # Next.js 13+ App Router
-    │   ├── api/           # API Routes
-    │   │   ├── calls/     # Call management endpoints
-    │   │   ├── contacts/  # Contact management
-    │   │   ├── conversations/ # Conversation data
-    │   │   └── dashboard/ # Dashboard statistics
-    │   ├── dashboard/     # Dashboard pages
-    │   └── page.tsx       # Landing/login page
-    ├── components/        # React components
-    │   ├── analytics/     # Analytics components
-    │   ├── ui/           # UI component library
-    │   └── app-layout.tsx # Main layout component
-    └── lib/              # Utilities and configurations
-        ├── auth-context.tsx # Authentication context
-        ├── mongodb.ts      # MongoDB connection
-        └── utils.ts        # Utility functions
+
+### Call Flow
+
+```
+┌─────────┐    ┌─────────┐    ┌───────────┐    ┌──────────┐
+│  Upload  │───▶│ Twilio  │───▶│  Azure    │───▶│ Sentiment│
+│  CSV     │    │ Dials   │    │  OpenAI   │    │ Analysis │
+│  Contacts│    │ Contact │    │  Converses│    │ & Store  │
+└─────────┘    └─────────┘    └───────────┘    └──────────┘
+                    │                                │
+                    ▼                                ▼
+              ┌──────────┐                    ┌──────────┐
+              │ Recording│                    │ Dashboard│
+              │ & Status │                    │ & Export │
+              └──────────┘                    └──────────┘
 ```
 
-## Technology Stack
+---
 
-### Backend
-- **Runtime**: Node.js with ES modules
-- **Framework**: Fastify (high-performance web framework)
-- **Database**: MongoDB for data persistence
-- **Communication**: 
-  - Twilio for telephony services
-  - Azure OpenAI Realtime API for AI conversations
-  - WebSocket for real-time audio streaming
-- **Additional Libraries**:
-  - `sentiment` for sentiment analysis
-  - `csv-parse` for CSV file processing
-  - `axios` for HTTP requests
-
-### Frontend
-- **Framework**: Next.js 14+ with App Router
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: Custom component library with shadcn/ui
-- **State Management**: React Context for authentication
-- **Database**: MongoDB integration
-- **Charts**: Recharts for data visualization
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
-- Node.js (v18+)
-- MongoDB database
-- Twilio account with phone number
-- Azure OpenAI account with Realtime API access
 
-### Environment Variables
+- **Node.js** 18+
+- **MongoDB** instance (local or Atlas)
+- **Twilio** account with a phone number
+- **Azure OpenAI** account with Realtime API access
 
-Create `.env` files in both Backend and Frontend directories:
+### 1. Clone and Install
 
-#### Backend (.env)
+```bash
+git clone https://github.com/yourusername/vocamind.git
+cd vocamind
+
+# Backend
+cd Backend && npm install
+
+# Frontend
+cd ../Frontend && npm install
+```
+
+### 2. Configure Environment
+
+**Backend** — `Backend/.env`:
+
 ```env
 TWILIO_ACCOUNT_SID=your_twilio_account_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
@@ -104,78 +139,93 @@ MONGODB_URI=your_mongodb_connection_string
 PORT=5050
 ```
 
-#### Frontend (.env.local)
+**Frontend** — `Frontend/.env.local`:
+
 ```env
 MONGODB_URI=your_mongodb_connection_string
 NEXTAUTH_SECRET=your_nextauth_secret
 NEXT_PUBLIC_API_URL=http://localhost:5050
 ```
 
-### Installation & Setup
+### 3. Run
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd VocaMind
-   ```
+```bash
+# Terminal 1 — Backend
+cd Backend
+npm run dev          # → http://localhost:5050
 
-2. **Install Backend Dependencies**
-   ```bash
-   cd Backend
-   npm install
-   ```
+# Terminal 2 — Frontend
+cd Frontend
+npm run dev          # → http://localhost:3000
+```
 
-3. **Install Frontend Dependencies**
-   ```bash
-   cd ../Frontend
-   npm install
-   ```
+---
 
-4. **Start the Backend Server**
-   ```bash
-   cd Backend
-   npm run dev  # Development mode
-   # or
-   npm start    # Production mode
-   ```
+## Project Structure
 
-5. **Start the Frontend Application**
-   ```bash
-   cd Frontend
-   npm run dev
-   ```
+```
+VocaMind/
+├── Backend/                        # Fastify API Server
+│   ├── index.js                   # Main entry point
+│   ├── server.js                  # Fastify config + routes
+│   ├── demo.js                    # Demo/testing utilities
+│   ├── test-sentiment.js          # Sentiment analysis tests
+│   └── phone_numbers.csv          # Sample contact data
+│
+└── Frontend/                       # Next.js Application
+    ├── app/
+    │   ├── api/
+    │   │   ├── calls/             # Call management endpoints
+    │   │   ├── contacts/          # Contact CRUD
+    │   │   ├── conversations/     # Conversation data
+    │   │   └── dashboard/         # Dashboard stats
+    │   ├── dashboard/             # Dashboard pages
+    │   └── page.tsx               # Login / landing
+    │
+    ├── components/
+    │   ├── analytics/             # Charts and sentiment views
+    │   ├── ui/                    # shadcn/ui component library
+    │   └── app-layout.tsx         # Main layout shell
+    │
+    └── lib/
+        ├── auth-context.tsx       # Auth state management
+        ├── mongodb.ts             # Database connection
+        └── utils.ts               # Helpers
+```
 
-6. **Access the Application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5050
+---
 
-## API Documentation
+## API Reference
 
-### Core Endpoints
+### Core Backend Endpoints
 
-#### Call Management
-- `GET /` - Health check
-- `POST /batch-calls` - Initiate batch calls from CSV
-- `GET /call-status-summary` - Get active call statistics
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| `GET` | `/` | Health check |
+| `POST` | `/batch-calls` | Launch batch calling campaign from CSV |
+| `GET` | `/call-status-summary` | Active call statistics |
 
-#### Twilio Webhooks
-- `POST /call-status` - Call status updates
-- `POST /gather-input` - DTMF input processing
-- `POST /recording-status` - Recording status updates
-- `POST /fallback` - Error handling
-- `POST /twilio-events` - General Twilio events
+### Twilio Webhooks
 
-#### WebSocket
-- `WS /media-stream` - Real-time audio streaming
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| `POST` | `/call-status` | Call status change callbacks |
+| `POST` | `/gather-input` | DTMF tone input processing |
+| `POST` | `/recording-status` | Recording completion callbacks |
+| `POST` | `/fallback` | Error fallback handler |
+| `WS` | `/media-stream` | Real-time audio streaming (WebSocket) |
 
 ### Frontend API Routes
-- `/api/calls` - Call data management
-- `/api/contacts` - Contact management
-- `/api/conversations` - Conversation data
-- `/api/dashboard/stats` - Dashboard statistics
-- `/api/generate-suggestions` - AI-generated suggestions
 
-## CSV Format for Batch Calls
+| Endpoint | Description |
+|:---------|:------------|
+| `/api/calls` | Call data management |
+| `/api/contacts` | Contact list CRUD |
+| `/api/conversations` | Conversation transcripts |
+| `/api/dashboard/stats` | Aggregated dashboard metrics |
+| `/api/generate-suggestions` | AI-generated follow-up suggestions |
+
+### CSV Format for Batch Calls
 
 ```csv
 phone_number,language,name
@@ -184,99 +234,58 @@ phone_number,language,name
 +15553456789,zh,李明
 ```
 
-**Supported Languages**: `en`, `es`, `zh`, `ru`, `ht`, `ko`
+Supported languages: `en` · `es` · `zh` · `ru` · `ht` · `ko`
 
-## Usage
+---
 
-### Making Outbound Calls
-1. Upload a CSV file with phone numbers via the Contacts page
-2. Navigate to the Dashboard
-3. Click "Initiate Calls" and select your contact list
-4. Monitor real-time call progress and analytics
-
-### Viewing Analytics
-1. Access the Analytics page from the dashboard
-2. View sentiment analysis charts and conversation metrics
-3. Click on individual calls to see detailed transcripts
-4. Export data for further analysis
-
-### Managing Settings
-1. Configure call policies in the Policy section
-2. Adjust system settings via the Settings page
-3. Manage user preferences and authentication
-
-## Development
-
-### Backend Development
-```bash
-cd Backend
-npm run dev  # Starts with nodemon for auto-reload
-```
-
-### Frontend Development
-```bash
-cd Frontend
-npm run dev  # Starts Next.js development server
-```
-
-### Testing
-```bash
-# Backend
-cd Backend
-npm test
-
-# Frontend
-cd Frontend
-npm test
-```
-
-## Production Deployment
-
-### Backend
-1. Set production environment variables
-2. Build and start the server:
-   ```bash
-   npm start
-   ```
+## Tech Stack
 
 ### Frontend
-1. Build the Next.js application:
-   ```bash
-   npm run build
-   npm start
-   ```
 
-### Docker (Optional)
-Docker configurations can be added for containerized deployment.
+| Layer | Technology |
+|:------|:-----------|
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| UI Components | shadcn/ui |
+| Charts | Recharts |
+| State | React Context |
+| Database Access | MongoDB (via Next.js API routes) |
+
+### Backend
+
+| Layer | Technology |
+|:------|:-----------|
+| Runtime | Node.js (ES modules) |
+| Framework | Fastify |
+| Database | MongoDB |
+| Telephony | Twilio (calls, recording, DTMF) |
+| AI / Voice | Azure OpenAI Realtime API |
+| Real-time | WebSocket (audio streaming) |
+| Sentiment | sentiment (npm) |
+| CSV Parsing | csv-parse |
+| HTTP Client | Axios |
+
+---
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Commit changes: `git commit -am 'Add new feature'`
-4. Push to the branch: `git push origin feature/new-feature`
-5. Submit a pull request
-
-## License
-
-This project is licensed under the ISC License.
-
-## Support
-
-For support and questions:
-1. Check the API documentation in `Backend/API.md`
-2. Review the frontend documentation in `Frontend/docs/api.md`
-3. Create an issue in the repository
-
-## Future Enhancements
-
-- Advanced AI conversation flows
-- Multi-tenant support
-- Enhanced analytics and reporting
-- Integration with CRM systems
-- Advanced call routing and distribution
-- Real-time collaboration features
+2. Create your feature branch → `git checkout -b feat/new-feature`
+3. Commit your changes → `git commit -m "feat: add new feature"`
+4. Push to the branch → `git push origin feat/new-feature`
+5. Open a Pull Request
 
 ---
 
-**VocaMind** - Transforming voice communications with AI-powered insights and automation.
+## License
+
+Licensed under the [ISC License](LICENSE).
+
+---
+
+<div align="center">
+
+**[Back to Top](#vocamind)**
+
+</div>
